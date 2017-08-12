@@ -49,7 +49,7 @@
 #define DCASM
 
 #ifdef DCASM
-extern int g_adrLinTop;
+extern ptrdiff_t g_adrLinTop;
 #endif
 
 //typedef long          val_t;
@@ -387,7 +387,6 @@ static val_t expr0(void)
             l = sym_val = get_dig16(&ch_p);
             sym = '0';
         } else {
-            extern int g_adrLinTop;
             l = sym_val = g_adrLinTop;
             sym = '0';
         }
