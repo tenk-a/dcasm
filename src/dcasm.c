@@ -10,6 +10,8 @@
 #include "tree.h"
 #include "filn.h"
 #include "strexpr.h"
+#include "mbc.h"
+
 
 #if defined(_WIN32) || defined(_MSC_VER)
 #define strcasecmp  stricmp
@@ -40,7 +42,8 @@ void Usage(void)
             "  -y        文字列中, C言語の\\エスケープシーケンスを有効  -y- 無効\n"
             "  -s        ;をコメント開始文字でなく複文用のセパレータとして扱う\n"
             "  -m        命令(文法)ヘルプを標準エラー出力\n"
-            "  -cSJIS    入力テキストをsjisとして解釈.\n"
+            "  -cUTF8    入力テキストをutf8として解釈.\n"
+			"  -cMBC     入力テキストをマルチバイト文字(SJIS)として解釈.\n"
             "  -v[-]     途中経過メッセージを表示する -v-しない\n"
             "  @FILE     レスポンス・ファイル指定\n"
     );
@@ -77,6 +80,7 @@ void ManHelp(void)
     exit(1);
 }
 
+
 /* ------------------------------------------------------------------------ */
 SLIST*      fileListTop = NULL;
 char*       outname     = NULL;
@@ -88,7 +92,6 @@ static int  endianMode;         /* エンディアンの指定                   */
 static int  autoAlignMode = 3;  /* dc.w, dc.l, dc.q での、自動アライメントの方法 */
 static int  vmsgFlg;
 static int  useSep;
-static int  charaMode;
 
 
 int Opts(char* a)
@@ -162,8 +165,12 @@ int Opts(char* a)
         debugflag = (*p == '-') ? 0 : 1;
         break;
     case 'C':
-        charaMode = (strcasecmp(p, "sjis") == 0);
-        if (charaMode == 1) {
+        if (strcasecmp(p, "mbc") == 0) {
+            mbs_setEnv(NULL);
+            Filn->opt_kanji = 1;
+            StrExpr_SetMbcMode(1);
+        } else if (strcasecmp(p, "utf8") == 0 || strcasecmp(p, "utf-8") == 0) {
+            mbs_setEnv("ja_JP.utf-8");
             Filn->opt_kanji = 1;
             StrExpr_SetMbcMode(1);
         }
@@ -319,9 +326,11 @@ char*   LinSep(char* st)
         } else if (k && *s == '\\' && s[1]) {
             *d++ = *s++;
             *d++ = *s++;
-        } else if (ISKANJI((unsigned char)*s) && s[1]) {
-            *d++ = *s++;
-            *d++ = *s++;
+        } else if (mbs_islead(*(unsigned char*)s)) {
+            unsigned l = mbs_len1(s);
+            memcpy(d, s, l);
+            d += l;
+            s += l;
         } else {
             *d++ = *s++;
         }
@@ -605,7 +614,6 @@ void odr_term(void)
 /*---------------------------------------------------------------------------*/
 #define IsLblTop(c)     (isalpha(c) || (c) == '_' || *s == '@' || *s == '.')
 #define TOK_NAME_LEN    1024
-#define IS_KANJI(c)     (charaMode && ISKANJI(c))
 
 static int              passMode;
 static ptrdiff_t        g_adr;          /* アドレス */
@@ -616,18 +624,21 @@ static char             tok_name[TOK_NAME_LEN+2];
 
 char const* GetName(char *buf, char const* s)
 {
-    int n;
+    unsigned n;
 
     n = 0;
-    if (IsLblTop(*s) || IS_KANJI(*s)) {     //行頭に空白のあるラベル定義チェック
+    if (IsLblTop(*s) || mbs_islead(*s)) {     //行頭に空白のあるラベル定義チェック
         for (;;) {
-            if (IS_KANJI(*s) && s[1]) {
-                if (n < TOK_NAME_LEN-1) {
-                    n += 2;
-                    *buf++ = *s++;
-                    *buf++ = *s;
-                }
-                s++;
+            if (mbs_islead(*s)) {
+                unsigned l = mbs_len1(s);
+                if (n <= TOK_NAME_LEN - l) {
+                    n += l;
+                    memcpy(buf, s, l);
+                    buf += l;
+                    s   += l;
+				} else {
+	                s++;
+				}
             } else if (IsLblTop(*s) || isdigit(*s) || *s == '$') {
                 if (n < TOK_NAME_LEN) {
                     *buf++ = *s;
@@ -645,13 +656,13 @@ char const* GetName(char *buf, char const* s)
 
 
 
-int  GetCh(char const** sp)
+int  GetCh(char const** sp, int md)
 {
     char const* s;
     unsigned    c,ch,k,l,i;
 
     s = *sp;
-    ch = *s++;
+    ch = *(unsigned char*)(s++);
     if (ch == 0)
         s--;
     if (cescMode && ch == '\\') {
@@ -714,7 +725,11 @@ int  GetCh(char const** sp)
             }
             ch = c;
         }
-    }
+	} else if (mbs_islead(ch) && md > 0) {
+		--s;
+		ch = mbs_getc(&s);		// utf16のサロゲートペアは未対応
+
+	}
     *sp = s;
     return ch;
 }
@@ -765,7 +780,7 @@ val_t  Expr(char const**    sp)
 
 
 
-int CountArg(char const** sp)
+int CountArg(char const** sp, int md)
 {
     // 文字列 sの ','で区切られた項目の数を数える
     char const* s;
@@ -786,7 +801,7 @@ int CountArg(char const** sp)
                     s++;
                     break;
                 }
-                GetCh(&s);
+                GetCh(&s, md);
                 i++;
             }
         } else {
@@ -942,7 +957,7 @@ void gen_dc(char const** sp, int md)
                     s++;
                     break;
                 }
-                val = GetCh(&s);
+                val = GetCh(&s, md);
                 putOne(val,md);
             }
         } else {
@@ -963,7 +978,7 @@ void pass1_dc(char const** sp, int md)
 {
     int     n;
 
-    n = CountArg(sp);   // 引数の数を数える
+    n = CountArg(sp, md);   // 引数の数を数える
     if (n == 0) {
         srcl_error("dc に引数がない.\n");
     } else {
@@ -1064,7 +1079,6 @@ static int striOpt  = 1;        /* bit 0:行頭空白を削除1:する/0:しない */
                                 /* bit 1:改行を削除 1:する/0:しない */
                                 /* bit 2:空行を削除 1:する/0:しない */
                                 /* bit 3:全角空白も対象 1:する/0:しない */
-static int striAdi  = 0;        /* stri文字列の、きゃらオフセット値(単純な暗号化) */
 
 
 void GenStri(char const* s, int passNo)
@@ -1087,23 +1101,24 @@ void GenStri(char const* s, int passNo)
             s++;
             continue;
         }
-        c = *s + striAdi;
-        if (passNo == 2) {
-            POKEB(&g_mem[g_adr], (uint8_t)c);
-        }
-        if (IS_KANJI(c) && s[1]) {
-            s++;
-            g_adr++;
-            c = *s + striAdi;
+        c = *s;
+        if (mbs_islead(c)) {
+            unsigned l = mbs_len1(s);
+           if (passNo == 2) {
+                memcpy(&g_mem[g_adr], s, l);
+            }
+            g_adr += l;
+            s     += l;
+        } else {
             if (passNo == 2) {
                 POKEB(&g_mem[g_adr], (uint8_t)c);
             }
+            ++g_adr;
+            ++s;
         }
-        s++;
-        g_adr++;
     }
     if (passNo == 2) {
-        POKEB(&g_mem[g_adr], 0+striAdi);
+        POKEB(&g_mem[g_adr], 0);
 //printf("%s\n",d0);
     }
 }
@@ -1113,7 +1128,7 @@ void GenStriEnd(int passNo)
 {
     if (striMode) {
         if (passNo == 2) {
-            POKEB(&g_mem[g_adr], 0+striAdi);
+            POKEB(&g_mem[g_adr], 0);
             
         }
         g_adr++;
@@ -1245,12 +1260,6 @@ int Pass_Line(int passNo, char const* s0)
         GetArg(&s, imm, 1);
         striOpt  = (int)imm[0];
         break;
-  #if 0
-    case ODR_STRI_ADI:
-        GetArg(&s, imm, 1);
-        striAdi  = imm[0];
-        break;
-  #endif
     case ODR_XDEF:
         {
             char name[TOK_NAME_LEN+2];
@@ -1293,7 +1302,6 @@ void Pass(int passNo, srcl_t const* sr)
 
     srcl_errorSw(passNo - 1);
     g_adr   = 0;
-    striAdi = 0;
     for (p = sr; p; p = p->link) {
         srcl_cur = p;
         g_adrLinTop = g_adr;
@@ -1352,6 +1360,7 @@ int main(int argc, char *argv[])
     char*   p;
     SLIST*  fl;
 
+	mbs_init();
     FilnInit();     /* ソース入力ルーチンの初期化 */
 
     StrExpr_SetNameChkFunc(GetLblVal4StrExpr);  /* 式関係の準備 */

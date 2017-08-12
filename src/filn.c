@@ -12,6 +12,7 @@
 #include <ctype.h>
 #include <time.h>
 #include "Filn.h"
+#include "mbc.h"
 
 #if defined(_MSC_VER) && defined(_MSC_VER) < 1600
 #include "old_vc/stdint.h"
@@ -75,7 +76,8 @@ typedef struct filn_local_t {
 /*private:*/
 
     /* エラー関係 */
-    int         errNum, warNum;
+    int         errNum;
+    int         warNum;
     char const* errMacFnm;
     long        errMacLin;
 
@@ -267,13 +269,12 @@ void Filn_GetErrNum(int* errNum, int* warnNum)
 
 #define MEMBER_OFFSET(t,m)  ((long)&(((t*)0)->m))   /* 構造体メンバ名の、オフセット値を求める */
 
-//#define ISKANJI(c)    ((unsigned)((c)^0x20) - 0xA1 < 0x3C)
-#define ISKANJI(c)      ((UCHAR)(c) >= 0x81 && ((UCHAR)(c) <= 0x9F || ((UCHAR)(c) >= 0xE0 && (UCHAR)(c) <= 0xFC)))
-#define ISKANJI2(c)     ((UCHAR)(c) >= 0x40 && (UCHAR)(c) <= 0xfc && (c) != 0x7f)
+//#define ISKANJI(c)      ((UCHAR)(c) >= 0x81 && ((UCHAR)(c) <= 0x9F || ((UCHAR)(c) >= 0xE0 && (UCHAR)(c) <= 0xFC)))
+//#define ISKANJI2(c)     ((UCHAR)(c) >= 0x40 && (UCHAR)(c) <= 0xfc && (c) != 0x7f)
 #define STREND(p)       ((p)+strlen(p))
 #define STPCPY(d,s)     (strcpy(d,s) + strlen(s))
 
-#define FILN_ISKANJI(c) (V.opt_kanji && ISKANJI(c))
+#define FILN_MBC_IS_LEAD(c) (V.opt_kanji && mbs_islead(c))
 
 static char* strncpyZ(char* dst, char const* src, size_t size)
 {
@@ -1107,7 +1108,7 @@ char *Filn_GetStr(char* buf, size_t len)
     /* 一行を入力する。行末の改行コードは取り除く */
     char*   p;
     size_t  i;
-	int		c;
+    int     c;
 
     Z.inclp->line++;
     --len;
@@ -1342,6 +1343,8 @@ static char *Filn_GetLine(void)
     /* 1行入力. コメント削除、空白圧縮、行連結等を行う */
     int         macFlg = 0;
     int         c;
+    unsigned    l;
+    unsigned    j;
     char const* s;
     char*       d;
 
@@ -1400,16 +1403,12 @@ static char *Filn_GetLine(void)
             }
             break;
 
-        } else if (FILN_ISKANJI(c)) {                           /* 全角 */
-            StC(d, c);
-            c = GetC(s);    //c = *s++;
-            if (ISKANJI2(c) == 0)
-                Filn_Warnning("不正な全角がある\n");
-            if (c == 0) {
-                --s;
-                --d;
-            } else {
-                StC(d,c);
+        } else if (FILN_MBC_IS_LEAD(c)) {                           /* 全角 */
+			--s;
+			l = mbs_len1(s);
+            for (j = 0; j < l; ++j) {
+                c = GetC(s);
+                StC(d, c);
             }
 
         } else if (c == '\'') {             /* '文字列'の処理 */
@@ -1446,7 +1445,7 @@ static char *Filn_GetLine(void)
                         --s;
                         break;
                     }
-                    if (FILN_ISKANJI(c)) {
+                    if (FILN_MBC_IS_LEAD(c)) {
                         Filn_Warnning("\\の直後に全角文字がある\n");
                         goto J1;
                     }
@@ -1462,21 +1461,19 @@ static char *Filn_GetLine(void)
                             StC(d, (UCHAR)(c>>8));
                         c = (UCHAR)c; /*StC(d, (UCHAR)c);*/
                     }
-                } else if (FILN_ISKANJI(c)) {
-                  J1:
                     StC(d,c);
-                    c = GetC(s);    //c = *s++;
-                    if (ISKANJI2(c) == 0) {
-                        Filn_Warnning("不正な全角がある\n");
-                        --d;
-                        if (c == 0) {
-                            StC(d,c);
-                            break;
-                        }
-                        c = ' ';
+
+                } else if (FILN_MBC_IS_LEAD(c)) {
+              J1:
+					--s;
+                    l = mbs_len1(s);
+                    for (j = 0; j < l; ++j) {
+                        c = GetC(s);
+                        StC(d, c);
                     }
+                } else {
+                    StC(d,c);
                 }
-                StC(d,c);
             }
 
         } else if (ISSPACE(c)||c == 0xFF) {                 /* 空白 */
@@ -1800,8 +1797,9 @@ static char *M_ImmStr(char* str, val_t l, int typ)
 
 static char const* M_GetSymLabel(int c, char const* s, char const* p)
 {
-    int  l;
-    char *t;
+    unsigned	l;
+	unsigned	k;
+    char*       t;
 
     t = Z.M_name;
     *t = 0;
@@ -1812,20 +1810,16 @@ static char const* M_GetSymLabel(int c, char const* s, char const* p)
                 *t++ = c;
                 l--;
             }
-        } else if (FILN_ISKANJI(c)) {
-            if (ISKANJI2(*s) == 0) {
-                Filn_Error("漢字の２バイト目がおかしい(%02x:%02x)\n",c,*s);
-            } else if (l > 1) {
-              #if 0
-                if ( (c*256+(UCHAR)*s) < 0x824f) {
-                    Filn_Error("全角記号文字は名前に使えない(%s)\n",strncpyZ(Z.M_str, p,s-p+1));
-                } else 
-              #endif
-                {
-                    l -= 2;
-                    *t++ = c;
+        } else if (FILN_MBC_IS_LEAD(c)) {
+			--s;
+            k = mbs_len1(s);
+            if (k < 2) {
+                Filn_Error("全角文字２バイト目(以降)がおかしい(%02x:%02x)\n",c,*s);
+            } else if (l >= k) {
+                unsigned j;
+                l -= k;
+                for (j = 0; j < k; ++j)
                     *t++ = *s++;
-                }
             } else {
                 l = 0;
             }
@@ -1840,22 +1834,28 @@ static char const* M_GetSymLabel(int c, char const* s, char const* p)
 }
 
 
-static char const* M_GetSymSqt(int c, char const* s)
+static char const* M_GetSymSqt(unsigned c, char const* s)
 {
     while ((c = *s++) != '\'') {
-        if (FILN_ISKANJI(c)) {
-            if (ISKANJI2(*s) == 0) {
+        if (FILN_MBC_IS_LEAD(c)) {
+			unsigned l;
+			--s;
+            l = mbs_len1(s);
+            if (l < 2) {
                 Filn_Warnning("'で囲まれた中に不正な全角がある\n");
                 goto E1;
             }
-            Z.M_val = Z.M_val * 0x10000L + c * 256 + *s;
-            s++;
+            c = mbs_getc(&s);
+            if (c <= 0xffff && Z.M_val <= 0xFFFF)
+                Z.M_val = (Z.M_val << 16) | c;
+            else
+                Z.M_val = c;
         } else if (c == '\\' && (V.opt_yen == 1||V.opt_yen == 2)) {
             c = M_GetEscChr(&s);
-            if (c > 0xFFFFFF)   Z.M_val = /* Z.M_val * 0x100000000UL + */ c;
-            else if (c >0xFFFF) Z.M_val = Z.M_val * 0x1000000L + c;
-            else if (c > 255)   Z.M_val = Z.M_val * 0x10000L + c;
-            else                Z.M_val = Z.M_val * 256 + c;
+            if (c > 0xFFFFFF)   Z.M_val = c;
+            else if (c >0xFFFF) Z.M_val = (Z.M_val << 24) | c;
+            else if (c > 255)   Z.M_val = (Z.M_val << 16) | c;
+            else                Z.M_val = (Z.M_val <<  8) | c;
         } else if (c == 0) {
             /* Filn_Error("'が閉じていない\n"); */
             --s;
@@ -1875,43 +1875,51 @@ static char const* M_GetSymSqt(int c, char const* s)
 }
 
 
-static char const* M_GetSymWqt(int c, char const* s)
+static char const* M_GetSymWqt(unsigned c, char const* s)
 {
-    char *p;
+    char*   p;
     *Z.M_str = 0;
     p = Z.M_str;
     *p++ = '"';
     for (;;) {
         c = *s++;
-        if (c == '"') {
-            *p++ = '"';
-            break;
-        }
-        if (FILN_ISKANJI(c)) {
-            if (ISKANJI2(*s) == 0) {
-                Filn_Warnning("'で囲まれた中に不正な全角がある\n");
-                c = ' ';
-            } else {
-                *p++ = c;
-                c = *s++;
-            }
-        } else if (c == '\\' && (V.opt_yen == 1||V.opt_yen == 2)) {
-            *p++ = c;
-            c = *s++;
-        }
         if (c == 0) {
             /*Filn_Error("\"が閉じていない\n");*/
             /* *p++ = '"'; */
             --s;
             break;
         }
+        if (c == '"') {
+            *p++ = '"';
+            break;
+        }
+        if (FILN_MBC_IS_LEAD(c)) {
+			unsigned l;
+			--s;
+            l = mbs_len1(s);
+            if (l < 2) {
+                Filn_Warnning("'で囲まれた中に不正な全角がある\n");
+                c = ' ';
+                *p++ = c;
+            } else {
+                memcpy(p, s, l);
+                p += l;
+                s += l;
+            }
+        } else if (c == '\\' && (V.opt_yen == 1||V.opt_yen == 2)) {
+            *p++ = c;
+            c = *s++;
+            *p++ = c;
+		} else {
+			*p++ = c;
+		}
       #if 0
         if (/*(c != '\t' &&*/ c < 0x20) || c == 0x7f || c >= 0xFD) {
             Filn_Error("\"文字列\"中にコントロールコードが直接入っている\n");
             c = ' ';
+            *p++ = c;
         }
       #endif
-        *p++ = c;
     }
     *p = 0;
     return s;
@@ -2049,7 +2057,7 @@ static char const* M_GetSymDigit(int c, char const* s)
 
 static char const* M_GetSym0(char const* s)
 {
-    int         c;
+    unsigned    c;
     char const* p;
 
     *Z.M_name = 0;
@@ -2064,7 +2072,7 @@ static char const* M_GetSym0(char const* s)
         Z.M_sym = ' ';
         goto RET;
     }
-    if (isalpha(c) || IsSymKigo(c) || FILN_ISKANJI(c)) {
+    if (isalpha(c) || IsSymKigo(c) || FILN_MBC_IS_LEAD(c)) {
         s = M_GetSymLabel(c, s, p);
         strcpy(Z.M_str,Z.M_name);
         Z.M_sym = 'A';
@@ -2980,7 +2988,7 @@ static int M_Print(char const* s)
 {
     /* #print 行表示 */
     val_t       n;
-    int         c;
+    unsigned    c;
     char const* p;
 
     for (; ;) {
@@ -2994,14 +3002,22 @@ static int M_Print(char const* s)
             *(STREND(Z.M_str)-1) = '\0';
             p = Z.M_str+1;
             while (*p) {
-                c = *p++;
-                if (FILN_ISKANJI(c) && ISKANJI2(*p)) {
-                    fputc(c, stdout);
-                    c = *p++;
+                c = *p;
+                if (FILN_MBC_IS_LEAD(c)) {
+                    unsigned l = mbs_len1(p);
+                    unsigned j;
+                    for (j = 0; j < l; ++j) {
+                        c = *p++;
+                        fputc(c, stdout);
+                    }
                 } else if (c == '\\' && (V.opt_yen <= 2)) {
+                    ++p;
                     c = M_GetEscChr(&p);
+                    fputc(c, stdout);
+                } else {
+                    ++p;
+                    fputc(c, stdout);
                 }
-                fputc(c, stdout);
             }
         } else if (Z.M_sym == 'A') {
             printf("%s",Z.M_name);

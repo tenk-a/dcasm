@@ -42,6 +42,7 @@
 			/>
 			<Tool
 				Name="VCCLCompilerTool"
+				AdditionalOptions="/J"
 				Optimization="0"
 				PreprocessorDefinitions="WIN32;_DEBUG;_CONSOLE"
 				StringPooling="true"
@@ -349,6 +350,14 @@
 			</File>
 			<File
 				RelativePath=".\filn.h"
+				>
+			</File>
+			<File
+				RelativePath=".\mbc.c"
+				>
+			</File>
+			<File
+				RelativePath=".\mbc.h"
 				>
 			</File>
 			<File

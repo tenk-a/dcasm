@@ -44,7 +44,10 @@
 #include "strexpr.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 #include <ctype.h>
+#include "mbc.h"
+
 
 #define DCASM
 
@@ -61,8 +64,8 @@ typedef strexpr_val_t   val_t;
 #define isNAMETOP(ch)   (isalpha(ch) || (ch) == '_' || (ch) == '@' || (ch) == '.')
 #define isNAMECHR(ch)   (isNAMETOP(ch) || isdigit(ch) || (ch) == '$')
 
-#define ISKANJI(c)      (mbc_mode && (((unsigned char)(c) >= 0x81 && (unsigned char)(c) <= 0x9F) || ((unsigned char)(c) >= 0xE0 && (unsigned char)(c) <= 0xFC)))
-
+//#define ISKANJI(c)      (mbc_mode && (((unsigned char)(c) >= 0x81 && (unsigned char)(c) <= 0x9F) || ((unsigned char)(c) >= 0xE0 && (unsigned char)(c) <= 0xFC)))
+#define IS_MBC_LEAD(c)    (mbc_mode && mbs_islead(c))
 
 static int          expr_err = 0;
 
@@ -94,24 +97,26 @@ static void ch_get(void)
 
 static char const* GetName(char* name, char const* s)
 {
-    int i = 0;
+    unsigned    i = 0;
 
     for (;;) {
-        if (ISKANJI(*s) && s[1]) {
-            if (i < SYM_NAME_LEN-1) {
-                i+=2;
-                *name++ = *s++;
-                *name++ = *s;
+        if (IS_MBC_LEAD(*s)) {
+            unsigned k = mbs_len1(s);
+            if (i <= SYM_NAME_LEN-k) {
+                memcpy(name, s, k);
+                name += k;
+                s    += k;
+                i    += k;
             }
         } else if (isNAMECHR(*s)) {
             if (i < SYM_NAME_LEN) {
                 i++;
                 *name++ = *s;
             }
+            s++;
         } else {
             break;
         }
-        s++;
     }
     *name = 0;
     return s;
@@ -317,7 +322,7 @@ static void sym_get(void)
         ch_p--;
         sym_val = get_dig(&ch_p);
         sym = '0';
-    } else if (isNAMETOP(ch) || ISKANJI(ch)) {
+    } else if (isNAMETOP(ch) || IS_MBC_LEAD(ch)) {
         ch_p = GetName(sym_name, ch_p-1);
         sym = 'A';
         sym_val = 0;
