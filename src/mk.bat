@@ -1,1 +1,1 @@
-cl -O2 -Fe..\dcasm.exe dcasm.c filn.c subr.c strexpr.c tree.c
+cl -O2 -Fedcasm.exe dcasm.c filn.c subr.c strexpr.c tree.c

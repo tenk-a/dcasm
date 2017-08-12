@@ -1,0 +1,63 @@
+/**
+ * @file   cstdint
+ * @brief  stdint(typedef int??_t) for vc(<=15.??), borland-c(<=5.5?)
+ * @date   2005-2010
+ * @author tenk*
+ * @note
+ *  public domain software
+ */
+#ifndef CSTDINT_INCLUDED
+#define CSTDINT_INCLUDED
+
+#pragma once
+
+#ifdef __cplusplus
+
+#if (defined _MSC_VER && _MSC_VER >= 1600) || (defined __BORLANDC__ && __BORLANDC__ >= 0x5600)
+
+#include <cstdint>
+
+#else
+
+#include "stdint.h"
+
+namespace std {
+	using int8_t;
+	using uint8_t;
+	using int16_t;
+	using uint16_t;
+	using int32_t;
+	using uint32_t;
+	using int64_t;
+	using uint64_t;
+
+	using intmax_t;
+	using uintmax_t;
+
+	using intptr_t;
+	using uintptr_t;
+
+	using int_least8_t;
+	using uint_least8_t;
+	using int_least16_t;
+	using uint_least16_t;
+	using int_least32_t;
+	using uint_least32_t;
+	using int_least64_t;
+	using uint_least64_t;
+
+	using int_fast8_t;
+	using uint_fast8_t;
+	using int_fast16_t;
+	using uint_fast16_t;
+	using int_fast32_t;
+	using uint_fast32_t;
+	using int_fast64_t;
+	using uint_fast64_t;
+}	// std
+
+#endif	// _MSC_VER  __BORLANDC__
+
+#endif	// __cplusplus
+
+#endif	// CSTDINT_INCLUDED
