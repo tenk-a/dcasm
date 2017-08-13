@@ -45,6 +45,11 @@ L2:
 //#error	ERROR !
 //#print	test, print
 
+#set	SMP_1 =	1
+#set	SMP_1 =	2
+#set	SMP_1 =	0xff	// #set は値を再設定できる
+
+
 // -----------------------------------------------------------------
 	// 自動生成されたローカルラベルを外部に出す
 	xdef	_LCL_0, _LCL_1, _LCL_2, _LCL_3
@@ -64,7 +69,7 @@ SCE_START:
 	CodeOp(OP_RETURN)
 	CodeOp OP_END
 	#rept 8
-		dc.b	0xff
+		dc.b	SMP_1
 	#endrept
 SCE_END:
 TEXT_START:
