@@ -1470,6 +1470,7 @@ int main(int argc, char *argv[])
 
     DB err_printf( "[Œãˆ—]\n");
     /* Œãˆ— */
+    srcl_free(&srcl);
     odr_term();                         /* –½—ß•\‚ğíœ */
 
     return 0;
