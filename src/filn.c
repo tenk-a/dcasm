@@ -3858,7 +3858,7 @@ static void MM_MaccMacroAtrRsv(int argb, char const* t_name)
         break;
     default:
         /*MM_MaccErr(fname, line);*/
-        Filn_Error("PrgErr:よやく#define名(%s)\n",t_name);
+		Filn_Error("PrgErr:予約#define名(%s)\n",t_name);
     }
 }
 
@@ -4417,7 +4417,7 @@ static char *Filn_GetsMif(void)
         break;
 
     default:
-        Filn_Error("ヨキしない %c で始まる行がある\n", V.mac_chr);
+		Filn_Error("予期しない %c で始まる行がある\n", V.mac_chr);
     }
 
     goto RETRY;
@@ -4601,4 +4601,5 @@ int Filn_UndefLabel(char const* s)
 
 2017-08-12
         式の値を long long に変更. ポインタを可能ならconstに変更. utf-8対応
+        メモリ解放漏れの修正
 */
