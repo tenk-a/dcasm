@@ -7,7 +7,7 @@
 
     StrExr() (dcasm特化バージョン)
 
-    int StrExpr(char *s, char **s_nxt, long *val)
+    int StrExpr(char *s, char **s_nxt, long long *val)
         文字列 sをC似の式として計算して、*valに計算結果値をいれて返す.
         また, s_nxtがNULLでなければ使用した文字列の次のアドレスを
         *s_nextに入れて返す.
@@ -17,7 +17,7 @@
             3:0で割ろうとした
             4:(値でない)名前がある
 
-    　式は long で計算。演算子は以下の通り
+    　式は long long で計算。演算子は以下の通り
         単項+ 単項- ( ) ~ !
         * / %
         + -
@@ -30,10 +30,10 @@
         && ||
 
 
-    void StrExpr_SetNameChkFunc(int (*name2valFnc)(char *name, long *valp))
+    void StrExpr_SetNameChkFunc(int (*name2valFnc)(char *name, long long *valp))
         式中に名前が現れたとき、その名前を値に変換するルーチンを登録する。
 
-        int name2valFnc(char *name, long *valp)
+        int name2valFnc(char *name, long long *valp)
 
         のような関数をStrExpr利用者が作成し、StrExpr_SetNameChkFuncで登録する.
         利用者が作る関数は、nameを受け取り、値にするならば、その値を *valp
@@ -58,9 +58,8 @@
 extern ptrdiff_t g_adrLinTop;
 #endif
 
-//typedef long          val_t;
-//typedef long long     val_t;
 typedef strexpr_val_t   val_t;
+typedef int64_t         ival_t;
 
 
 #define SYM_NAME_LEN    1030
@@ -413,9 +412,9 @@ static val_t expr0(void)
     } else if (sym == '+') {
         l = expr0();
     } else if (sym == '~') {
-        l = ~(long)expr0();
+        l = ~(ival_t)expr0();
     } else if (sym == '!') {
-        l = !(long)expr0();
+        l = !(ival_t)expr0();
     } else if (sym == '(') {
         l = expr();
         if (sym != ')') {
@@ -456,7 +455,7 @@ static val_t expr1(void)
                 if (expr_err == 0)
                     expr_err = 3;//printf("0で割ろうとした\n");
             } else {
-                l = (long)l % (long)n;
+                l = (ival_t)l % (ival_t)n;
             }
         } else {
             break;
@@ -491,9 +490,9 @@ static val_t expr3(void)
     l = expr2();
     for (; ;) {
         if (sym == CC('<','<')) {
-            l = (long)l << (int)expr2();
+            l = (ival_t)l << (int)expr2();
         } else if (sym == CC('>','>')) {
-            l = (long)l >> (int)expr2();
+            l = (ival_t)l >> (int)expr2();
         } else {
             break;
         }
@@ -549,7 +548,7 @@ static val_t expr6(void)
     l = expr5();
     for (; ;) {
         if (sym == '&') {
-            l = (long)l & (long)expr5();
+            l = (ival_t)l & (ival_t)expr5();
         } else {
             break;
         }
@@ -565,7 +564,7 @@ static val_t expr7(void)
     l = expr6();
     for (; ;) {
         if (sym == '^') {
-            l = (long)l ^ (long)expr6();
+            l = (ival_t)l ^ (ival_t)expr6();
         } else {
             break;
         }
@@ -581,7 +580,7 @@ static val_t expr8(void)
     l = expr7();
     for (; ;) {
         if (sym == '|') {
-            l = (long)l | (long)expr7();
+            l = (ival_t)l | (ival_t)expr7();
         } else {
             break;
         }

@@ -16,7 +16,6 @@ extern "C" {
 #endif
 
 typedef int64_t     strexpr_val_t;
-//typedef long strexpr_val_t;
 
 int  StrExpr(char const *s, char const** s_nxt, strexpr_val_t* val);
 
