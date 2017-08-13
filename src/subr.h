@@ -1,3 +1,10 @@
+/**
+ *  @file   subr.h
+ *  @brief  subrutines
+ *  @author Masashi KITAMURA (tenka@6809.net)
+ *  @note
+ *      Boost Software License Version 1.0
+ */
 #ifndef SUBR_H
 #define SUBR_H
 
@@ -5,31 +12,15 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
-
-#if defined(_MSC_VER) && defined(_MSC_VER) < 1600
-#include "old_vc/stdint.h"
-#else
 #include <stdint.h>
-#endif
 
 #define STDERR          stderr
 
 #define FIL_NMSZ        1024
 
-typedef unsigned char  UCHAR;
-//typedef signed   char  SCHAR;
-//typedef unsigned       UINT;
-//typedef unsigned short USHORT;
-//typedef unsigned long  ULONG;
-//typedef unsigned long long ULLONG;
-
-
-#define MEMBER_OFFSET(t,m)  ((long)&(((t*)0)->m))   /* 構造体メンバ名の、オフセット値を求める */
-
 #define ISDIGIT(c)      (((unsigned)(c) - '0') < 10U)
 #define ISLOWER(c)      (((unsigned)(c)-'a') < 26U)
 #define TOUPPER(c)      (ISLOWER(c) ? (c) - 0x20 : (c) )
-//#define ISKANJI(c)    ((unsigned)((c)^0x20) - 0xA1 < 0x3C)
 #define ISKANJI(c)      ((uint8_t)(c) >= 0x81 && ((uint8_t)(c) <= 0x9F || ((uint8_t)(c) >= 0xE0 && (uint8_t)(c) <= 0xFC)))
 #define ISKANJI2(c)     ((uint8_t)(c) >= 0x40 && (uint8_t)(c) <= 0xfc && (c) != 0x7f)
 #define STREND(p)       ((p)+strlen(p))
@@ -209,18 +200,18 @@ void TXT1_Error(char const* fmt, ...);
 void TXT1_ErrorE(char const* fmt, ...);
 extern uint32_t TXT1_line;
 extern char     TXT1_name[FIL_NMSZ];
-extern FILE*	TXT1_fp;
+extern FILE*    TXT1_fp;
 
 typedef struct SLIST {
-    struct SLIST*	link;
-    char*			s;
+    struct SLIST*   link;
+    char*           s;
 } SLIST;
 SLIST *SLIST_Add(SLIST** root, char const* s);
 void   SLIST_Free(SLIST** p0);
 
 typedef int (*STBL_CMP)(void const* s0, void const* s1);
 STBL_CMP STBL_SetFncCmp(STBL_CMP fncCmp);
-int STBL_Add(void *t[], int *tblcnt, void const* key);
+int STBL_Add(void const *t[], int *tblcnt, void const* key);
 int STBL_Search(void const* const tbl[], int nn, void const* key);
 
 

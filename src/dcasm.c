@@ -1,12 +1,14 @@
 /**
- *  @file   dcasm.c
- *  @brief  dc.b, dc.w, dc.l 命令のみのアセンブラ
- *  @author Masashi KITAMURA    (tenka@6809.net)
- *  @date   2000,2017
+  @file   dcasm.c
+  @brief  dc.b, dc.w, dc.l 命令のみのアセンブラ
+  @author Masashi KITAMURA    (tenka@6809.net)
+  @date   2000,2017
+  @note
+    see license.txt
  */
 
-#include <stdarg.h>
 #include "subr.h"
+#include <stdarg.h>
 #include "tree.h"
 #include "filn.h"
 #include "strexpr.h"
@@ -17,15 +19,25 @@
 #define strcasecmp  stricmp
 #endif
 
+
+#if defined(_MSC_VER) && _MSC_VER < 1600
+#define S_FMT_LL            "I64"
+#else
+#define S_FMT_LL            "ll"
+#endif
+#define S_FMT_X             "%" S_FMT_LL "x"
+#define S_FMT_08X           "%08" S_FMT_LL "x"
+#define S_FMT_10D           "%10" S_FMT_LL "d"
+
 //typedef long          val_t;
-typedef long long       val_t;
+typedef int64_t         val_t;
 
 
 
 void Usage(void)
 {
     err_printf(
-            "usage> dcasm [-opt] filename(s)   // v0.50 " __DATE__ "  " __TIME__ "  by tenk\n"
+            "usage> dcasm [-opt] filename(s)   // v0.50 " __DATE__ "  " __TIME__ "  by tenk*\n"
             "  バイナリ・データ生成を目的としたdcディレクティブのみのアセンブラ\n"
             "  ファイル名が複数指定された場合、一連のテキストとして順に読みこむ.\n"
             "  出力ファイル名は最初のファイル名の拡張子を.binにしたもの\n"
@@ -43,7 +55,7 @@ void Usage(void)
             "  -s        ;をコメント開始文字でなく複文用のセパレータとして扱う\n"
             "  -m        命令(文法)ヘルプを標準エラー出力\n"
             "  -cUTF8    入力テキストをutf8として解釈.\n"
-			"  -cMBC     入力テキストをマルチバイト文字(SJIS)として解釈.\n"
+            "  -cMBC     入力テキストをマルチバイト文字(SJIS)として解釈.\n"
             "  -v[-]     途中経過メッセージを表示する -v-しない\n"
             "  @FILE     レスポンス・ファイル指定\n"
     );
@@ -92,11 +104,13 @@ static int  endianMode;         /* エンディアンの指定                   */
 static int  autoAlignMode = 3;  /* dc.w, dc.l, dc.q での、自動アライメントの方法 */
 static int  vmsgFlg;
 static int  useSep;
+static int  mbcMode = 0;
 
 
+/** オプションの処理 
+ */
 int Opts(char* a)
 {
-    /* オプションの処理 */
     char*   p;
     int     c;
 
@@ -167,12 +181,14 @@ int Opts(char* a)
     case 'C':
         if (strcasecmp(p, "mbc") == 0) {
             mbs_setEnv(NULL);
+            mbcMode = 1;
             Filn->opt_kanji = 1;
             StrExpr_SetMbcMode(1);
         } else if (strcasecmp(p, "utf8") == 0 || strcasecmp(p, "utf-8") == 0) {
             mbs_setEnv("ja_JP.utf-8");
-            Filn->opt_kanji = 1;
-            StrExpr_SetMbcMode(1);
+            mbcMode = 2;
+            Filn->opt_kanji = 2;
+            StrExpr_SetMbcMode(2);
         }
         break;
     case '\0':
@@ -213,6 +229,8 @@ void GetResFile(char* name)
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
+#define MBS_ISLEAD(c)       (mbcMode && mbs_islead(c))
+
 typedef struct srcl_t {
     struct srcl_t*  link;
     char*           fname;
@@ -225,14 +243,16 @@ srcl_t const*   srcl_cur = NULL;
 int             srcl_errDisp = 0;
 static char     linbuf[0x10000];
 
+
 void srcl_errorSw(int n)
 {
     srcl_errDisp = n;
 }
 
+/** ソース入力でエラーがあったとき
+ */
 void srcl_error(char const* fmt, ...)
 {
-    // ソース入力でエラーがあったとき
     va_list app;
 
     if (srcl_errDisp == 0)
@@ -252,9 +272,10 @@ void srcl_error(char const* fmt, ...)
 }
 
 
+/** ソース行をメモリに貯めるためリストにする。
+ */
 void srcl_add(srcl_t** p0, char const* fnm, int l, char const* s)
 {
-    // ソース行をメモリに貯めるためリストにする。
     srcl_t* p;
 
     p = *p0;
@@ -274,9 +295,10 @@ void srcl_add(srcl_t** p0, char const* fnm, int l, char const* s)
 }
 
 
+/** ソース行の開放
+ */
 void srcl_free(srcl_t** p0)
 {
-    // ソース行の開放
     srcl_t* p;
     srcl_t* q;
 
@@ -289,10 +311,10 @@ void srcl_free(srcl_t** p0)
 }
 
 
-
+/** セパレータ';' で区切られた一行を複数行に分ける 
+ */
 char*   LinSep(char* st)
 {
-    /* セパレータ; で区切られた一行を複数行に分ける */
     /*static char linbuf[0x10000];*/
     static char* s;
     char*        d = linbuf;
@@ -326,7 +348,7 @@ char*   LinSep(char* st)
         } else if (k && *s == '\\' && s[1]) {
             *d++ = *s++;
             *d++ = *s++;
-        } else if (mbs_islead(*(unsigned char*)s)) {
+        } else if (MBS_ISLEAD(*(unsigned char*)s)) {
             unsigned l = mbs_len1(s);
             memcpy(d, s, l);
             d += l;
@@ -340,9 +362,10 @@ char*   LinSep(char* st)
     return linbuf;
 }
 
+/** マクロ展開済みのソースを作成する 
+ */
 void GetSrcList(char* name)
 {
-    /* マクロ展開済みのソースを作成する */
     char*   s;
     char*   fnm;
     int     l;
@@ -354,7 +377,7 @@ void GetSrcList(char* name)
         s = Filn_Gets();    /* マクロ展開後のソースを取得 */
         if (s == NULL)
             break;
-        Filn_GetFnameLine(&fnm, &l);
+        Filn_GetFnameLine((char const**)&fnm, &l);
         if (useSep == 0) {
             strcpy(linbuf, s);
             StrDelLf(linbuf);
@@ -391,8 +414,9 @@ static TREE*    LBL_tree;
 
 
 
+/** TREE ルーチンで、新しい要素を造るときに呼ばれる 
+ */
 static void *LBL_New(label_t const* t)
-    /* TREE ルーチンで、新しい要素を造るときに呼ばれる */
 {
     label_t*    p;
     p = callocE(1,sizeof(label_t));
@@ -403,40 +427,45 @@ static void *LBL_New(label_t const* t)
 
 
 
+/** ラベルTREE ルーチンで、メモリ開放のときに呼ばれる 
+ */
 static void LBL_Del(void *ff)
-    /* TREE ルーチンで、メモリ開放のときに呼ばれる */
 {
     freeE(ff);
 }
 
 
 
+/** ラベルTREE ルーチンで、用いられる比較条件 
+ */
 static int  LBL_Cmp(label_t const* f1, label_t const* f2)
-    /* TREE ルーチンで、用いられる比較条件 */
 {
     return strcmp(f1->name, f2->name);
 }
 
 
 
+/** ラベルTREE を初期化 
+ */
 void    LBL_Init(void)
 {
-    /* TREE を初期化 */
     LBL_tree = TREE_Make((TREE_NEW) LBL_New, (TREE_DEL) LBL_Del, (TREE_CMP) LBL_Cmp, (TREE_MALLOC) mallocE, (TREE_FREE) freeE);
 }
 
 
 
+/** ラベルTREE を開放 
+ */
 void LBL_Term(void)
 {
-    /* TREE を開放 */
     TREE_Clear(LBL_tree);
 }
 
 
 
+/** 現在の名前がラベルtreeに登録されたラベルかどうか探す
+ */
 label_t *LBL_Search(char const* lbl_name)
-    /* 現在の名前が木に登録されたラベルかどうか探す */
 {
     label_t t;
 
@@ -451,8 +480,9 @@ label_t *LBL_Search(char const* lbl_name)
 
 
 
+/** ラベル(名前)を木に登録する 
+ */
 label_t *LBL_Add(char const* lbl_name, val_t val, int typ)
-    /* ラベル(名前)を木に登録する */
 {
     label_t     t;
     label_t*    p;
@@ -514,8 +544,9 @@ typedef struct odr_t {
 
 static TREE*    odr_tree;
 
+/** TREE ルーチンで、新しい要素を造るときに呼ばれる
+ */
 static void*    odr_new(odr_t const* t)
-    /* TREE ルーチンで、新しい要素を造るときに呼ばれる */
 {
     odr_t*  p;
 
@@ -525,14 +556,16 @@ static void*    odr_new(odr_t const* t)
     return p;
 }
 
+/** TREE ルーチンで、メモリ開放のときに呼ばれる
+ */
 static void odr_del(void *ff)
-    /* TREE ルーチンで、メモリ開放のときに呼ばれる */
 {
     freeE(ff);
 }
 
+/** TREE ルーチンで、用いられる比較条件
+ */
 static int  odr_cmp(odr_t const* f1, odr_t const* f2)
-    /* TREE ルーチンで、用いられる比較条件 */
 {
     return strcmp(f1->name, f2->name);
 }
@@ -550,8 +583,9 @@ int odr_search(char const* name)
     return ODR_NON;
 }
 
+/** ラベル(名前)を木に登録する
+ */
 odr_t*  odr_add(char const* name, int id)
-    /* ラベル(名前)を木に登録する */
 {
     odr_t   t;
     odr_t*  p;
@@ -627,18 +661,18 @@ char const* GetName(char *buf, char const* s)
     unsigned n;
 
     n = 0;
-    if (IsLblTop(*s) || mbs_islead(*s)) {     //行頭に空白のあるラベル定義チェック
+    if (IsLblTop(*s) || MBS_ISLEAD(*s)) {     //行頭に空白のあるラベル定義チェック
         for (;;) {
-            if (mbs_islead(*s)) {
+            if (MBS_ISLEAD(*s)) {
                 unsigned l = mbs_len1(s);
                 if (n <= TOK_NAME_LEN - l) {
                     n += l;
                     memcpy(buf, s, l);
                     buf += l;
                     s   += l;
-				} else {
-	                s++;
-				}
+                } else {
+                    s++;
+                }
             } else if (IsLblTop(*s) || isdigit(*s) || *s == '$') {
                 if (n < TOK_NAME_LEN) {
                     *buf++ = *s;
@@ -725,11 +759,11 @@ int  GetCh(char const** sp, int md)
             }
             ch = c;
         }
-	} else if (mbs_islead(ch) && md > 0) {
-		--s;
-		ch = mbs_getc(&s);		// utf16のサロゲートペアは未対応
+    } else if (MBS_ISLEAD(ch) && md > 0) {
+        --s;
+        ch = mbs_getc(&s);      // utf16のサロゲートペアは未対応
 
-	}
+    }
     *sp = s;
     return ch;
 }
@@ -780,9 +814,10 @@ val_t  Expr(char const**    sp)
 
 
 
+/** 文字列 *sp の ','で区切られた項目の数を数える
+ */
 int CountArg(char const** sp, int md)
 {
-    // 文字列 sの ','で区切られた項目の数を数える
     char const* s;
     int         i;
 
@@ -821,9 +856,10 @@ int CountArg(char const** sp, int md)
 
 
 
+/** 文字列 *sp の ','で区切られた数値を num 個、imm[] に取得
+ */
 void GetArg(char const** sp, val_t imm[], int num)
 {
-    // 文字列 sの ','で区切られた数値を num 個、imm[] に取得
     char const* s;
     int         i;
 
@@ -903,7 +939,7 @@ void putOne(val_t val, int md)
         POKEB(&g_mem[g_adr], (uint8_t)val);
         g_adr++;
         if (val < -128 || val > 255)
-            srcl_error("値が 8ビット整数の範囲を超えている(%llx)\n", val);
+            srcl_error("値が 8ビット整数の範囲を超えている(" S_FMT_X ")\n", val);
     } else if (md == 1) {
         if (endianMode == 0)
             POKEiW(&g_mem[g_adr], val);
@@ -911,15 +947,15 @@ void putOne(val_t val, int md)
             POKEmW(&g_mem[g_adr], val);
         g_adr += 2;
         if (val < -32768 || val > 0xFFFF)
-            srcl_error("値が16ビット整数の範囲を超えている(%llx)\n", val);
+            srcl_error("値が16ビット整数の範囲を超えている(" S_FMT_X ")\n", val);
     } else if (md == 2) {
         if (endianMode == 0)
             POKEiD(&g_mem[g_adr], val);
         else
             POKEmD(&g_mem[g_adr], val);
         g_adr += 4;
-        if (val < -2147483648ll || val > (val_t)0xFFFFFFFF)
-            srcl_error("値が32ビット整数の範囲を超えている(%llx)\n", val);
+        if (val < -(val_t)2147483648 || val > (val_t)0xFFFFFFFF)
+            srcl_error("値が32ビット整数の範囲を超えている(" S_FMT_X ")\n", val);
     } else if (md == 3) {
         if (endianMode == 0)
             POKEiQ(&g_mem[g_adr], val);
@@ -1084,7 +1120,6 @@ static int striOpt  = 1;        /* bit 0:行頭空白を削除1:する/0:しない */
 void GenStri(char const* s, int passNo)
 {
     int  c;
-    //char *d0 = &g_mem[g_adr];
 
     if (striOpt & 1) {
         if (striOpt & 8)
@@ -1102,7 +1137,7 @@ void GenStri(char const* s, int passNo)
             continue;
         }
         c = *s;
-        if (mbs_islead(c)) {
+        if (MBS_ISLEAD(c)) {
             unsigned l = mbs_len1(s);
            if (passNo == 2) {
                 memcpy(&g_mem[g_adr], s, l);
@@ -1119,7 +1154,6 @@ void GenStri(char const* s, int passNo)
     }
     if (passNo == 2) {
         POKEB(&g_mem[g_adr], 0);
-//printf("%s\n",d0);
     }
 }
 
@@ -1322,7 +1356,7 @@ void    gen_hdr_sub(void *a)
     label_t *l = a;
 
     if (l->typ == 3)
-        fprintf(gen_hdr_fp, "#define %-14s\t0x%08x\t/* %10d */\n", l->name, l->val, l->val);
+        fprintf(gen_hdr_fp, "#define %-14s\t0x" S_FMT_08X "\t/* " S_FMT_10D " */\n", l->name, l->val, l->val);
 }
 
 
@@ -1360,7 +1394,7 @@ int main(int argc, char *argv[])
     char*   p;
     SLIST*  fl;
 
-	mbs_init();
+    mbs_init();
     FilnInit();     /* ソース入力ルーチンの初期化 */
 
     StrExpr_SetNameChkFunc(GetLblVal4StrExpr);  /* 式関係の準備 */

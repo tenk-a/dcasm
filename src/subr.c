@@ -1,3 +1,11 @@
+/**
+ *  @file   subr.c
+ *  @brief  subrutines
+ *  @author Masashi KITAMURA (tenka@6809.net)
+ *  @note
+ *      Boost Software License Version 1.0
+ */
+
 #include "subr.h"
 #include <stdarg.h>
 #include <io.h>
@@ -20,9 +28,10 @@ char* StrSkipSpc(char const* s)
 }
 
 
+/* 全角対応のStrSkipSpc
+ */
 char* StrSkipSpc2(char const* s)
 {
-    /* 全角対応のStrSkipSpc */
     while ((*s && *(unsigned char *)s <= ' ') || *s == 0x7f || ((unsigned char)s[0] == 0x81 && s[1] == 0x40)) {
         if ((unsigned char)s[0] == 0x81)
             s++;
@@ -161,7 +170,7 @@ volatile void err_exit(char const* fmt, ...)
 int err_printf(char const* fmt, ...)
 {
     va_list app;
-    int		n;
+    int     n;
 
     va_start(app, fmt);
     n = vfprintf(STDERR, fmt, app);
@@ -172,8 +181,8 @@ int err_printf(char const* fmt, ...)
 
 
 
+/* エラーがあれば即exitの malloc() */
 void *mallocE(size_t a)
-    /* エラーがあれば即exitの malloc() */
 {
     void *p;
 #if 1
@@ -188,8 +197,8 @@ void *mallocE(size_t a)
     return p;
 }
 
+/* エラーがあれば即exitの calloc() */
 void *callocE(size_t a, size_t b)
-    /* エラーがあれば即exitの calloc() */
 {
     void *p;
 
@@ -205,8 +214,8 @@ void *callocE(size_t a, size_t b)
     return p;
 }
 
+/* エラーがあれば即exitの calloc() */
 void *reallocE(void *m, size_t a)
-    /* エラーがあれば即exitの calloc() */
 {
     void *p;
     if (a == 0)
@@ -219,11 +228,10 @@ void *reallocE(void *m, size_t a)
     return p;
 }
 
+/* エラーがあれば即exitの strdup() */
 char *strdupE(char const* s)
-    /* エラーがあれば即exitの strdup() */
 {
     char *p;
-//printf("strdup('%s')\n",s);
     if (s == NULL)
         return callocE(1,1);
   #if 1
@@ -247,10 +255,10 @@ int freeE(void *p)
 }
 
 /* ------------------------------------------------------------------------ */
+/* エラーがあれば即exitの fopen() */
 FILE *fopenE(char const* name, char const* mod)
-    /* エラーがあれば即exitの fopen() */
 {
-    FILE*	fp;
+    FILE*   fp;
     fp = fopen(name,mod);
     if (fp == NULL) {
         err_exit("ファイル %s をオープンできません\n",name);
@@ -259,8 +267,8 @@ FILE *fopenE(char const* name, char const* mod)
     return fp;
 }
 
+/* エラーがあれば即exitの fwrite() */
 size_t  fwriteE(void *buf, size_t sz, size_t num, FILE *fp)
-    /* エラーがあれば即exitの fwrite() */
 {
     size_t l;
 
@@ -271,8 +279,8 @@ size_t  fwriteE(void *buf, size_t sz, size_t num, FILE *fp)
     return l;
 }
 
+/* エラーがあれば即exitの fread() */
 size_t  freadE(void *buf, size_t sz, size_t num, FILE *fp)
-    /* エラーがあれば即exitの fread() */
 {
     size_t l;
 
@@ -285,8 +293,8 @@ size_t  freadE(void *buf, size_t sz, size_t num, FILE *fp)
 
 /* ------------------------------------------------------------------------ */
 
+/* fpより 1バイト(0..255) 読み込む. エラーがあれば即終了 */
 int fgetcE(FILE *fp)
-    /* fpより 1バイト(0..255) 読み込む. エラーがあれば即終了 */
 {
   #if 1
     static uint8_t buf[1];
@@ -302,59 +310,59 @@ int fgetcE(FILE *fp)
   #endif
 }
 
+/* fpより ﾘﾄﾙｴﾝﾃﾞｨｱﾝで 2バイト読み込む. エラーがあれば即終了 */
 int fgetc2iE(FILE *fp)
-    /* fpより ﾘﾄﾙｴﾝﾃﾞｨｱﾝで 2バイト読み込む. エラーがあれば即終了 */
 {
     int c;
     c = fgetcE(fp);
     return (uint16_t)(c | (fgetcE(fp)<<8));
 }
 
+/* fpより ﾘﾄﾙｴﾝﾃﾞｨｱﾝで 4バイト読み込む. エラーがあれば即終了 */
 int fgetc4iE(FILE *fp)
-    /* fpより ﾘﾄﾙｴﾝﾃﾞｨｱﾝで 4バイト読み込む. エラーがあれば即終了 */
 {
     int c;
     c = fgetc2iE(fp);
     return c + (fgetc2iE(fp)<<16);
 }
 
+/* fpより bigｴﾝﾃﾞｨｱﾝで 2バイト読み込む. エラーがあれば即終了 */
 int fgetc2mE(FILE *fp)
-    /* fpより bigｴﾝﾃﾞｨｱﾝで 2バイト読み込む. エラーがあれば即終了 */
 {
     int c;
     c = fgetcE(fp);
     return (uint16_t)((c<<8) | fgetcE(fp));
 }
 
+/* fpより bigｴﾝﾃﾞｨｱﾝで 4バイト読み込む. エラーがあれば即終了 */
 int fgetc4mE(FILE *fp)
-    /* fpより bigｴﾝﾃﾞｨｱﾝで 4バイト読み込む. エラーがあれば即終了 */
 {
     int c;
     c = fgetc2mE(fp);
     return (c<<16) | fgetc2mE(fp);
 }
 
+/* fpに 1バイト(0..255) 書き込む. エラーがあれば即終了 */
 void fputcE(int c, FILE *fp)
-    /* fpに 1バイト(0..255) 書き込む. エラーがあれば即終了 */
 {
-    static uint8_t buf[1];
+    uint8_t buf[1];
     buf[0] = (uint8_t)c;
     fwriteE(buf, 1, 1, fp);
 }
 
+/* fpに ﾋﾞｯｸﾞｴﾝﾃﾞｨｱﾝで 2バイト書き込む. エラーがあれば即終了 */
 void fputc2mE(int c, FILE *fp)
-    /* fpに ﾋﾞｯｸﾞｴﾝﾃﾞｨｱﾝで 2バイト書き込む. エラーがあれば即終了 */
 {
-    static uint8_t buf[4];
+    uint8_t buf[4];
     buf[0] = (uint8_t)(c>> 8);
     buf[1] = (uint8_t)(c);
     fwriteE(buf, 1, 2, fp);
 }
 
+/* fpに ﾋﾞｯｸﾞｴﾝﾃﾞｨｱﾝで 4バイト書き込む. エラーがあれば即終了 */
 void fputc4mE(int c, FILE *fp)
-    /* fpに ﾋﾞｯｸﾞｴﾝﾃﾞｨｱﾝで 4バイト書き込む. エラーがあれば即終了 */
 {
-    static uint8_t buf[4];
+    uint8_t buf[4];
     buf[0] = (uint8_t)(c>>24);
     buf[1] = (uint8_t)(c>>16);
     buf[2] = (uint8_t)(c>> 8);
@@ -370,19 +378,19 @@ void *fputsE(char *s, FILE *fp)
     return s;
 }
 
+/* fpに ﾘﾄﾙｴﾝﾃﾞｨｱﾝで 2バイト書き込む. エラーがあれば即終了 */
 void fputc2iE(int c, FILE *fp)
-    /* fpに ﾘﾄﾙｴﾝﾃﾞｨｱﾝで 2バイト書き込む. エラーがあれば即終了 */
 {
-    static uint8_t buf[4];
+    uint8_t buf[4];
     buf[0] = (uint8_t)(c);
     buf[1] = (uint8_t)(c>> 8);
     fwriteE(buf, 1, 2, fp);
 }
 
+/* fpに ﾘﾄﾙｴﾝﾃﾞｨｱﾝで 4バイト書き込む. エラーがあれば即終了 */
 void fputc4iE(int c, FILE *fp)
-    /* fpに ﾘﾄﾙｴﾝﾃﾞｨｱﾝで 4バイト書き込む. エラーがあれば即終了 */
 {
-    static uint8_t buf[4];
+    uint8_t buf[4];
     buf[0] = (uint8_t)(c);
     buf[1] = (uint8_t)(c>> 8);
     buf[2] = (uint8_t)(c>> 16);
@@ -466,13 +474,13 @@ void FIL_LoadE(char *name, void *buf, size_t size)
     }
 }
 
-size_t	FIL_loadsize;
+size_t  FIL_loadsize;
 
 void *FIL_LoadME(char *name)
 {
-    FILE*	fp;
-    char*	buf;
-    size_t	l;
+    FILE*   fp;
+    char*   buf;
+    size_t  l;
 
     fp = fopenE(name,"rb");
     l  = filelength(fileno(fp));
@@ -513,9 +521,9 @@ void *FIL_LoadM(char *name)
 
 
 /* ------------------------------------------------------------------------ */
-uint32_t	TXT1_line;
-char		TXT1_name[FIL_NMSZ];
-FILE*		TXT1_fp;
+uint32_t    TXT1_line;
+char        TXT1_name[FIL_NMSZ];
+FILE*       TXT1_fp;
 
 void TXT1_Error(char const* fmt, ...)
 {
@@ -618,13 +626,13 @@ STBL_CMP STBL_SetFncCmp(STBL_CMP cmp)
     return STBL_cmp;
 }
 
+/*
+ *  t     : 文字列へのポインタをおさめた配列
+ *  tblcnt: 登録済個数
+ *  key   : 追加する文字列
+ *  復帰値: 0:追加 -1:すでに登録済
+ */
 int STBL_Add(void const* t[], int* tblcnt, void const* key)
-   /*
-    *  t     : 文字列へのポインタをおさめた配列
-    *  tblcnt: 登録済個数
-    *  key   : 追加する文字列
-    *  復帰値: 0:追加 -1:すでに登録済
-    */
 {
     int  low, mid, f, hi;
 
@@ -649,13 +657,13 @@ int STBL_Add(void const* t[], int* tblcnt, void const* key)
     return 0;
 }
 
+/*
+ *  key:さがす文字列へのポインタ
+ *  tbl:文字列へのポインタをおさめた配列
+ *  nn:配列のサイズ
+ *  復帰値:見つかった文字列の番号(0より)  みつからなかったとき-1
+ */
 int STBL_Search(void const* const tbl[], int nn, void const* key)
-   /*
-    *  key:さがす文字列へのポインタ
-    *  tbl:文字列へのポインタをおさめた配列
-    *  nn:配列のサイズ
-    *  復帰値:見つかった文字列の番号(0より)  みつからなかったとき-1
-    */
 {
     int     low, mid, f;
 

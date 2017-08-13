@@ -1,14 +1,26 @@
 /**
  *  @file   mbc.c
  *  @brief  マルチバイト文字の処理.
+ *  @author Masashi KITAMURA (tenka@6809.net)
  *  @note
- *  -   文字コード変換はしない.
+ *   -  utf8対応.
+ *   -  2バイトコードは、winでは基本、api任せ.
+ *   -  win-api以外では SJIS,EUC-JP,EUC(基本部分),BIG5,GBK(gb18030)を考慮.
+ *   -  半角全角を想定した表示の桁数を指定可能に(かなり大雑把).(Width)
+ *   -  ライセンス
+ *      Boost Software License Version 1.0
  */
+
 #include "mbc.h"
 #include <assert.h>
+
 #ifdef _WIN32
 #include <windows.h>
+#ifdef _MSC_VER
 #define strncasecmp     _strnicmp
+#else
+#define strncasecmp     strnicmp
+#endif
 #endif
 
 #ifdef _MSC_VER
@@ -737,7 +749,6 @@ static unsigned utf8_islead(unsigned c) {
  */
 static unsigned utf8_chkc(unsigned c)
 {
-    c;
     return 1;
 }
 
@@ -838,26 +849,26 @@ static char*    utf8_setc(char*  dst, unsigned c) {
             *d++ = 0x80|(c&0x3f);
         } else if (c <= 0xFFFF) {
             *d++ = 0xE0|(c>>12);
-            *d++ = 0x80|(c>>6)&0x3f;
+            *d++ = 0x80|((c>>6)&0x3f);
             *d++ = 0x80|(c&0x3f);
             //if (c >= 0xff60 && c <= 0xff9f) {--(*adn); }  // 半角カナなら、半角文字扱い.
         } else if (c <= 0x1fFFFF) {
             *d++ = 0xF0|(c>>18);
-            *d++ = 0x80|(c>>12)&0x3f;
-            *d++ = 0x80|(c>>6)&0x3f;
+            *d++ = 0x80|((c>>12)&0x3f);
+            *d++ = 0x80|((c>>6)&0x3f);
             *d++ = 0x80|(c&0x3f);
         } else if (c <= 0x3fffFFFF) {
             *d++ = 0xF8|(c>>24);
-            *d++ = 0x80|(c>>18)&0x3f;
-            *d++ = 0x80|(c>>12)&0x3f;
-            *d++ = 0x80|(c>>6)&0x3f;
+            *d++ = 0x80|((c>>18)&0x3f);
+            *d++ = 0x80|((c>>12)&0x3f);
+            *d++ = 0x80|((c>>6)&0x3f);
             *d++ = 0x80|(c&0x3f);
         } else {
             *d++ = 0xFC|(c>>30);
-            *d++ = 0x80|(c>>24)&0x3f;
-            *d++ = 0x80|(c>>18)&0x3f;
-            *d++ = 0x80|(c>>12)&0x3f;
-            *d++ = 0x80|(c>>6)&0x3f;
+            *d++ = 0x80|((c>>24)&0x3f);
+            *d++ = 0x80|((c>>18)&0x3f);
+            *d++ = 0x80|((c>>12)&0x3f);
+            *d++ = 0x80|((c>>6)&0x3f);
             *d++ = 0x80|(c&0x3f);
         }
     }
@@ -1035,15 +1046,15 @@ size_t    mbc_adjust_size(const Mbc_Env* mbc, const char* str, size_t size) {
 size_t  mbc_sizeToChrs(const Mbc_Env* mbc, const char* str, size_t size) {
     const char* s = str;
     const char* e = s + size;
-    const char* b = s;
+    //const char* b = s;
     size_t      l = 0;
     if (e < s)
         e = (const char*)(~(size_t)0);
     assert(str != 0 && size > 0);
     while (s < e) {
         unsigned c;
-        b  = s;
-        c  = mbc->getc(&s);
+        //b  = s;
+        c  = mbc->getC(&s);
         if (c == 0)
             break;
         ++l;
@@ -1064,7 +1075,7 @@ size_t  mbc_sizeToWidth(const Mbc_Env* mbc, const char* str, size_t size) {
         e = (const char*)(~(size_t)0);
     assert(str != 0 && size > 0);
     while (s < e) {
-        unsigned c  = mbc->getc(&s);
+        unsigned c  = mbc->getC(&s);
         if (c == 0)
             break;
         b = w;
@@ -1082,7 +1093,7 @@ size_t  mbc_chrsToWidth(const Mbc_Env* mbc, const char* str, size_t chrs) {
     size_t      w = 0;
     assert(str != 0);
     while (chrs) {
-        unsigned c  = mbc->getc(&s);
+        unsigned c  = mbc->getC(&s);
         if (c == 0)
             break;
         w += mbc->chrWidth(c);
@@ -1098,7 +1109,7 @@ size_t  mbc_chrsToSize(const Mbc_Env* mbc, const char* str, size_t chrs) {
     size_t      sz = 0;
     assert(str != 0);
     while (chrs) {
-        unsigned c  = mbc->getc(&s);
+        unsigned c  = mbc->getC(&s);
         if (c == 0)
             break;
         sz += mbc->chrLen(c);
@@ -1117,7 +1128,7 @@ size_t  mbc_widthToSize(const Mbc_Env* mbc, const char* str, size_t width) {
     while (w < width) {
         unsigned c;
         b  = s;
-        c  = mbc->getc(&s);
+        c  = mbc->getC(&s);
         if (c == 0)
             break;
         w += mbc->chrWidth(c);
@@ -1131,14 +1142,14 @@ size_t  mbc_widthToSize(const Mbc_Env* mbc, const char* str, size_t width) {
 /// 半角文字単位の幅から文字数を求める.
 size_t  mbc_widthToChrs(const Mbc_Env* mbc, const char* str, size_t width) {
     const char* s = str;
-    const char* b = s;
+    const char* b;
     size_t      w = 0;
     size_t      n = 0;
     assert(str != 0);
     while (w < width) {
         unsigned c;
         b  = s;
-        c  = mbc->getc(&s);
+        c  = mbc->getC(&s);
         if (c == 0)
             break;
         ++n;
@@ -1267,8 +1278,8 @@ int mbc_cmp(const Mbc_Env* mbc, const char* lp, const char* rp) {
     assert(lp != NULL);
     assert(rp != NULL);
     do {
-        lc = mbc->getc(&lp);
-        rc = mbc->getc(&rp);
+        lc = mbc->getC(&lp);
+        rc = mbc->getC(&rp);
         d  = lc - rc;
     } while (d == 0 && lc);
     return d;
@@ -1294,12 +1305,12 @@ void     mbs_setEnv(char const* lang_enc)
 }
 
 
-unsigned mbs_islead  (char c)               { return mbc_env_default_ptr->islead(c)  ; }
-unsigned mbs_getc    (const char** ppStr)   { return mbc_env_default_ptr->getc(ppStr)  ; }
-unsigned mbs_peekc   (const char* str)      { return mbc_env_default_ptr->peekc(str) ; }
+unsigned mbs_islead  (char c)               { return mbc_env_default_ptr->isLead(c)  ; }
+unsigned mbs_getc    (const char** ppStr)   { return mbc_env_default_ptr->getC(ppStr)  ; }
+unsigned mbs_peekc   (const char* str)      { return mbc_env_default_ptr->peekC(str) ; }
 char*    mbs_inc     (const char* str)      { return (char*)str + mbc_env_default_ptr->len1(str) ; }
-void     mbs_putc    (char** d,unsigned c)  { *d = mbc_env_default_ptr->setc(*d, c)  ; }
-char*    mbs_setc    (char*  d,unsigned c)  { return mbc_env_default_ptr->setc(d,c)  ; }
+void     mbs_putc    (char** d,unsigned c)  { *d = mbc_env_default_ptr->setC(*d, c)  ; }
+char*    mbs_setc    (char*  d,unsigned c)  { return mbc_env_default_ptr->setC(d,c)  ; }
 unsigned mbs_len1    (const char* pChr)     { return mbc_env_default_ptr->len1(pChr) ; }
 unsigned mbs_chrLen  (unsigned chr)         { return mbc_env_default_ptr->chrLen(chr)    ; }
 unsigned mbs_chrWidth(unsigned chr)         { return mbc_env_default_ptr->chrWidth(chr); }

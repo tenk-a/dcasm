@@ -44,7 +44,7 @@ typedef unsigned int        uint32_t;
  typedef uint32_t           uintmax_t;
 #endif
 
-#if defined(_WIN64) || defined(ARA_CPU64)
+#if defined(_WIN64) || defined(_M_AMD64) || defined(_M_X64) || defined(ARA_CPU64)
  typedef int64_t            intptr_t;
  typedef uint64_t           uintptr_t;
 #else
@@ -73,33 +73,33 @@ typedef uint64_t            uint_fast64_t;
 
 #if !defined(__cplusplus) || defined(__STDC_LIMIT_MACROS)
 
-#define INT8_MIN            (-128)
+#define INT8_MIN            (-127 - 1)
 #define INT8_MAX              127
 #define UINT8_MAX            0xFF
 
-#define INT16_MIN           (-32768)
+#define INT16_MIN           (-32767 - 1)
 #define INT16_MAX             32767
 #define UINT16_MAX           0xFFFF
 
-#define INT32_MIN           (-2147483648)
+#define INT32_MIN           (-2147483647 - 1)
 #define INT32_MAX             2147483647
 #define UINT32_MAX            0xFFFFFFFF
 
-#define INT64_MIN           (-9223372036854775808LL)
+#define INT64_MIN           (-9223372036854775807LL - 1LL)
 #define INT64_MAX             9223372036854775807LL
 #define UINT64_MAX             0xFFFFFFFFFFFFFFFFLL
 
 #if !defined(ARA_NO_INT64)
  #define INTMAX_MIN         INT64_MIN
  #define INTMAX_MAX         INT64_MAX
- #define UINTMAX_MAX            UINT64_MAX
+ #define UINTMAX_MAX        UINT64_MAX
 #else
  #define INTMAX_MIN         INT32_MIN
  #define INTMAX_MAX         INT32_MAX
- #define UINTMAX_MAX            UINT32_MAX
+ #define UINTMAX_MAX        UINT32_MAX
 #endif
 
-#if defined(_WIN64) && defined(ARA_CPU64)
+#if defined(_WIN64) || defined(_M_AMD64) || defined(_M_X64) || defined(ARA_CPU64)
  #define INTPTR_MIN         INT64_MIN
  #define INTPTR_MAX         INT64_MAX
  #define UINTPTR_MAX        UINT64_MAX

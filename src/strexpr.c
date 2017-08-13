@@ -2,7 +2,7 @@
     @file   strexpr.c
     @brief  式文字列を計算する
     @author Masashi KITAMURA (tenka@6809.net)
-    @date   1996-2000,2017
+    @date   1996-2017
     @note
 
     StrExr() (dcasm特化バージョン)
@@ -38,6 +38,9 @@
         のような関数をStrExpr利用者が作成し、StrExpr_SetNameChkFuncで登録する.
         利用者が作る関数は、nameを受け取り、値にするならば、その値を *valp
         にいれ、0を返す。値に出来ないならば 非0を返すこと。
+
+    ライセンス
+        Boost Software License Version 1.0
  */
 
 //#include "subr.h"
@@ -75,7 +78,7 @@ static char const   *ch_p   = NULL;
 static unsigned     sym     = 0;
 static val_t        sym_val = 0;
 static char         sym_name[SYM_NAME_LEN];
-static int          (*name2valFunc)(char *name, val_t *valp) = NULL;
+static int          (*name2valFunc)(char const* name, val_t *valp) = NULL;
 static int          mbc_mode = 0;
 
 #define CC(a,b)     ((a)*256+(b))

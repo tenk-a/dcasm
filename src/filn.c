@@ -3,6 +3,8 @@
  *  @brief  条件生成、マクロ機能をもったテキストファイル入力ルーチン.
  *  @author Masashi KITAMURA (tenka@6809.net)
  *  @date   1996-2017
+ *  @note
+ *      Boost Software License Version 1.0
  */
 
 #include <stdio.h>
@@ -11,14 +13,9 @@
 #include <stdarg.h>
 #include <ctype.h>
 #include <time.h>
+#include <stdint.h>
 #include "Filn.h"
 #include "mbc.h"
-
-#if defined(_MSC_VER) && defined(_MSC_VER) < 1600
-#include "old_vc/stdint.h"
-#else
-#include <stdint.h>
-#endif
 
 
 
@@ -41,20 +38,16 @@ typedef unsigned char       UCHAR;
 #define LINBUF_SIZE         0x30000U
 #define M_MBUF_SIZE         0x40000U
 
-#if 1 //ndef DCASM_NO_LONG_LONG_VALUE
-typedef long long           filn_val_t;
-typedef unsigned long long  filn_uval_t;
-#define S_FMT_D             "%lld"
-#define S_FMT_X             "%llx"
-#define S_FMT_U             "%llu"
+#if defined(_MSC_VER) && _MSC_VER < 1600
+#define S_FMT_LL            "I64"
 #else
-typedef long                filn_val_t;
-typedef unsigned long       filn_uval_t;
-#define S_FMT_D             "%ld"
-#define S_FMT_X             "%lX"
-#define S_FMT_U             "%lu"
+#define S_FMT_LL            "ll"
 #endif
+#define S_FMT_X             "%" S_FMT_LL "x"
+#define S_FMT_D             "%" S_FMT_LL "d"
+#define S_FMT_U             "%" S_FMT_LL "u"
 
+typedef int64_t             filn_val_t;
 typedef filn_val_t          val_t;
 
 
@@ -151,7 +144,7 @@ typedef struct filn_local_t {
 } filn_local_t;
 
 
-extern filn_t*          Filn       = NULL;
+filn_t*                 Filn       = NULL;
 static filn_local_t*    filn_local = NULL;
 
 #define V       (*Filn)
@@ -170,7 +163,7 @@ static int Filn_ErrVPrintf(char const* fmt, void *app)
     int n;
 
     if (Z.inclp && Z.inclp->name && Z.inclp->name[0]) {
-        fprintf(V.errFp, "%-13s %5lu : ", Z.inclp->name, Z.inclp->line);
+        fprintf(V.errFp, "%-13s %5u : ", Z.inclp->name, Z.inclp->line);
     }
     n = vfprintf(V.errFp, fmt, app);
     if (Z.errMacFnm && V.macErrFlg) {
@@ -429,12 +422,12 @@ typedef struct TREE {
     TREE_FREE   free;
 } TREE;
 
-TREE* TREE_Make(TREE_NEW newElement,TREE_DEL delElement,TREE_CMP cmpElement, TREE_MALLOC funcMalloc, TREE_FREE funcFree);
-void* TREE_Insert(TREE* tree, void* e);
-void* TREE_Search(TREE* tree, void* p);
-int   TREE_Delete(TREE* tree, void* e);  /* 要素を木から削除 */
-void  TREE_Clear(TREE* tree);
-void  TREE_DoAll(TREE* tree, void (*func)(void*));
+static TREE* TREE_Make(TREE_NEW newElement,TREE_DEL delElement,TREE_CMP cmpElement, TREE_MALLOC funcMalloc, TREE_FREE funcFree);
+static void* TREE_Insert(TREE* tree, void* e);
+static void* TREE_Search(TREE* tree, void* p);
+static int   TREE_Delete(TREE* tree, void* e);  /* 要素を木から削除 */
+static void  TREE_Clear(TREE* tree);
+static void  TREE_DoAll(TREE* tree, void (*func)(void*));
 
 
 //#define MSGF(x)   (printf x)
@@ -858,7 +851,7 @@ filn_t  *Filn_Init(void)
 
     V.getsAddSiz    = 16;
 
-    memset(Z.inclStk, 0, sizeof Z.inclStk);
+    memset(Z.inclStk, 0, sizeof(Z.inclStk));
     Z.inclNo = -1;
     Z.inclp = &Z.inclStk[0];    /* とりあえずダミーでセット */
 
@@ -1404,8 +1397,8 @@ static char *Filn_GetLine(void)
             break;
 
         } else if (FILN_MBC_IS_LEAD(c)) {                           /* 全角 */
-			--s;
-			l = mbs_len1(s);
+            --s;
+            l = mbs_len1(s);
             for (j = 0; j < l; ++j) {
                 c = GetC(s);
                 StC(d, c);
@@ -1452,7 +1445,7 @@ static char *Filn_GetLine(void)
                     if (V.opt_yen >= 3) {
                         d--;
                         s--;
-                        c = M_GetEscChr((char**)&s);
+                        c = M_GetEscChr((char const**)&s);
                         if (c >= 0x1000000)
                             StC(d, (UCHAR)(c>>24));
                         if (c >= 0x10000)
@@ -1465,7 +1458,7 @@ static char *Filn_GetLine(void)
 
                 } else if (FILN_MBC_IS_LEAD(c)) {
               J1:
-					--s;
+                    --s;
                     l = mbs_len1(s);
                     for (j = 0; j < l; ++j) {
                         c = GetC(s);
@@ -1797,13 +1790,13 @@ static char *M_ImmStr(char* str, val_t l, int typ)
 
 static char const* M_GetSymLabel(int c, char const* s, char const* p)
 {
-    unsigned	l;
-	unsigned	k;
+    unsigned    l;
+    unsigned    k;
     char*       t;
 
-    t = Z.M_name;
+    t  = Z.M_name;
     *t = 0;
-    l = (sizeof Z.M_name) - 1;
+    l  = sizeof(Z.M_name) - 1;
     for (; ;) {
         if (isalpha(c) || isdigit(c) || IsSymKigo(c)||c == 0xff) {  /* 0xffは内部での特別処理用 */
             if (l) {
@@ -1811,7 +1804,7 @@ static char const* M_GetSymLabel(int c, char const* s, char const* p)
                 l--;
             }
         } else if (FILN_MBC_IS_LEAD(c)) {
-			--s;
+            --s;
             k = mbs_len1(s);
             if (k < 2) {
                 Filn_Error("全角文字２バイト目(以降)がおかしい(%02x:%02x)\n",c,*s);
@@ -1838,8 +1831,8 @@ static char const* M_GetSymSqt(unsigned c, char const* s)
 {
     while ((c = *s++) != '\'') {
         if (FILN_MBC_IS_LEAD(c)) {
-			unsigned l;
-			--s;
+            unsigned l;
+            --s;
             l = mbs_len1(s);
             if (l < 2) {
                 Filn_Warnning("'で囲まれた中に不正な全角がある\n");
@@ -1894,8 +1887,8 @@ static char const* M_GetSymWqt(unsigned c, char const* s)
             break;
         }
         if (FILN_MBC_IS_LEAD(c)) {
-			unsigned l;
-			--s;
+            unsigned l;
+            --s;
             l = mbs_len1(s);
             if (l < 2) {
                 Filn_Warnning("'で囲まれた中に不正な全角がある\n");
@@ -1910,9 +1903,9 @@ static char const* M_GetSymWqt(unsigned c, char const* s)
             *p++ = c;
             c = *s++;
             *p++ = c;
-		} else {
-			*p++ = c;
-		}
+        } else {
+            *p++ = c;
+        }
       #if 0
         if (/*(c != '\t' &&*/ c < 0x20) || c == 0x7f || c >= 0xFD) {
             Filn_Error("\"文字列\"中にコントロールコードが直接入っている\n");
@@ -2302,7 +2295,7 @@ static val_t M_Expr0(void)
 
     } else if (Z.M_sym == '"' && V.opt_wq_mode) {
         n = 0;
-        strncpyZ(Z.M_expr_str, Z.M_str, (sizeof Z.M_expr_str));
+        strncpyZ(Z.M_expr_str, Z.M_str, sizeof(Z.M_expr_str));
         Z.M_ep = M_GetSym(Z.M_ep);
 
     } else if (Z.M_sym == 0) {
@@ -2389,7 +2382,8 @@ static val_t M_Expr3(void)
 
 static val_t M_Expr4(void)
 {
-    val_t   m,n;
+    val_t   m;
+    int     n;
     m = M_Expr3();
     for (; ;) {
         if (Z.M_expr_str[0]) {
@@ -2591,7 +2585,7 @@ static char const* M_GetArg(char const* s, int cont, char const* tit)
 
     if (cont == 0) {
         Z.M_argc = 0;
-        memset(Z.M_argv, 0, sizeof Z.M_argv);
+        memset(Z.M_argv, 0, sizeof(Z.M_argv));
     }
     k = 0;
     if (*s == '(') {
@@ -2766,7 +2760,7 @@ static int M_Macro(char const* s)
         argb = 0;
         argv = NULL;
         Z.M_argc = 0;
-        memset(Z.M_argv, 0, sizeof Z.M_argv);
+        memset(Z.M_argv, 0, sizeof(Z.M_argv));
         /*s = SkipSpc(s);*/
         M_ChkEol(Z.M_sym,s);
     } else {
@@ -3753,7 +3747,7 @@ static void MM_MaccMacroAtrRsv(int argb, char const* t_name)
         StMbuf("\"");
         break;
     case M_RSV_LINE:
-        sprintf(name,"%lu",Z.inclp->line);
+        sprintf(name,"%u",Z.inclp->line);
         StMbuf(name);
         name[0] = 0;
         break;
@@ -3794,7 +3788,7 @@ static void MM_Macc_MSet(char const* name, char const* s)
     s = Z.M_ep;
     /*if (Z.M_sym != '\n' && Z.M_sym != 0)*/
     M_ChkEol(Z.M_sym, s);
-    sprintf(buf, "%d", n);
+    sprintf(buf, S_FMT_D, n);
     MTREE_Add(name, M_ATR_SET, n, 0, NULL, strdupE(buf), 0);
 //printf("set>> %s = %ld\n", name, n);
 }
@@ -4504,25 +4498,5 @@ int Filn_UndefLabel(char const* s)
         M_Expr0 のトークンの取り間違いがあったのを修正（当然、#ifの結果もおかしくなる）
 
 2017-08-12
-        式の値を long long に変更. ポインタを可能ならconstに変更.
-
-  ■利用条件
-      ソースについては、下記条件を満たす限り、改造するなり流用するなり
-      自由で連絡不要ですし、流用の場合はマニュアル等に明記する必要は
-      ないです。ただしソース公開の場合はソースの配布条件をどこかに書い
-      てください。
-      ・直接の改造物ならば、バージョンナンバーを原作者とは別ものと
-        見分けられるようにすること。
-      ・ルーチンの流用/改造では、最低限、流用ルーチンは、作者と同じ条件
-      　を継続すること。
-      ・変更/追加等してその特許や著作権等で他者のプログラミングを制限し
-      　ないこと。変更箇所かどうかに関わらず他者のプログラミングを制限
-      するプログラムへのルーチンの流用を行わないこと。
-      　他人のプログラミングを邪魔しないのであれば、別に市販ソフトだろ
-      　うとシュアウェアだろうと流用してよいです。
-      ・自分の変更を独り占めにしたいなら、公開しないこと。また、他者が
-      　同様なコトを行っていても権利を主張しないこと。
-
-      当然のことながら無保証です。作者はなんら義務を負いません。
-    利用者の責任で用いてください。
+        式の値を long long に変更. ポインタを可能ならconstに変更. utf-8対応
 */

@@ -1,12 +1,14 @@
 /**
  *  @file   mbc.h
  *  @brief  マルチバイト文字の処理.
- *  @author tenk*
+ *  @author Masashi KITAMURA (tenka@6809.net)
  *  @note
- *      -   utf8対応.
- *      -   2バイトコードは、winでは基本、api任せ.
- *      -   win-api以外では SJIS,EUC-JP,EUC(基本部分),BIG5,GBK(gb18030)を考慮.
- *      -   半角全角を想定した表示の桁数を指定可能に(かなり大雑把).(Width)
+ *   -  utf8対応.
+ *   -  2バイトコードは、winでは基本、api任せ.
+ *   -  win-api以外では SJIS,EUC-JP,EUC(基本部分),BIG5,GBK(gb18030)を考慮.
+ *   -  半角全角を想定した表示の桁数を指定可能に(かなり大雑把).(Width)
+ *   -  ライセンス
+ *      Boost Software License Version 1.0
  */
 #ifndef MBC_H_INCLUDE
 #define MBC_H_INCLUDE
@@ -26,12 +28,12 @@ extern "C" {
 #endif
 
 
-struct Mbc_Env {
-    unsigned (*islead)(unsigned c);                         // Cがマルチバイト文字の1バイト目か?
-    unsigned (*chkc)(unsigned c);
-    unsigned (*getc)(const char** str);                     // 1字取り出し＆ポインタ更新.
-    unsigned (*peekc)(const char* str);                     // 一字取り出し
-    char*    (*setc)(char*  dst, unsigned c);               // 1字書き込み.
+typedef struct Mbc_Env {
+    unsigned (*isLead)(unsigned c);                         // Cがマルチバイト文字の1バイト目か?
+    unsigned (*chkC)(unsigned c);
+    unsigned (*getC)(const char** str);                     // 1字取り出し＆ポインタ更新.
+    unsigned (*peekC)(const char* str);                     // 一字取り出し
+    char*    (*setC)(char*  dst, unsigned c);               // 1字書き込み.
     unsigned (*len1)(const char* pChr);                     // 1文字のchar数を返す.
     unsigned (*chrLen)(unsigned chr);                       // 1文字のchar数を返す.
     unsigned (*chrWidth)(unsigned chr);                     // 半角全角を考慮して文字の幅を返す.
@@ -39,7 +41,7 @@ struct Mbc_Env {
 
   #ifdef __cplusplus    //気力があれば、関数ポインタ化.
     char*    inc   (const char* str)     const { return (char*)str + this->len1(str) ; }
-    void     putc  (char** d,unsigned c) const { *d = this->setc(*d, c); }
+    void     putc  (char** d,unsigned c) const { *d = this->setC(*d, c); }
 
     size_t   strLen(const char* src) const;
     size_t   adjust_size(const char* src, size_t sz) const;
@@ -56,26 +58,25 @@ struct Mbc_Env {
     char*    cpyWidth(char dst[], size_t size, const char* src, size_t width) const ;
     char*    catWidth(char dst[], size_t size, const char* src, size_t width) const ;
   #endif
-};
+} Mbc_Env;
 
 #ifdef __cplusplus
 #define MBC_INL     inline
 #else
-typedef struct Mbc_Env Mbc_Env;
 #define MBC_INL     static inline
 #endif
 
 const Mbc_Env*   mbc_env_create(const char* lang_enc);      // "ja_JP.SJIS等で環境設定. NULLでデフォルト取得.
-MBC_INL unsigned mbc_islead (const Mbc_Env* e, char c)              { return e->islead(c) ; }
-MBC_INL unsigned mbc_getc   (const Mbc_Env* e, const char** ppStr)  { return e->getc(ppStr) ; }
-MBC_INL unsigned mbc_peekc  (const Mbc_Env* e, const char* str)     { return e->peekc(str); }
-MBC_INL char*    mbc_setc   (const Mbc_Env* e, char*  d,unsigned c) { return e->setc(d,c); }
-MBC_INL unsigned mbc_len1   (const Mbc_Env* e, const char* pChr)    { return e->len1(pChr); }
+MBC_INL unsigned mbc_islead (const Mbc_Env* e, char c)              { return e->isLead(c) ; }
+MBC_INL unsigned mbc_getc   (const Mbc_Env* e, char const** ppStr)  { return e->getC(ppStr) ; }
+MBC_INL unsigned mbc_peekc  (const Mbc_Env* e, char const* str)     { return e->peekC(str); }
+MBC_INL char*    mbc_setc   (const Mbc_Env* e, char*  d,unsigned c) { return e->setC(d,c); }
+MBC_INL unsigned mbc_len1   (const Mbc_Env* e, char const* pChr)    { return e->len1(pChr); }
 MBC_INL unsigned mbc_chrLen (const Mbc_Env* e, unsigned chr)        { return e->chrLen(chr); }
 MBC_INL size_t   mbc_chrWidth(const Mbc_Env* e, unsigned chr)       { return e->chrWidth(chr); }
 
 MBC_INL char*   mbc_inc     (const Mbc_Env* e, const char* str)     { return (char*)str + e->len1(str) ; }
-MBC_INL void    mbc_putc    (const Mbc_Env* e, char** d,unsigned c) { *d = e->setc(*d, c); }
+MBC_INL void    mbc_putc    (const Mbc_Env* e, char** d,unsigned c) { *d = e->setC(*d, c); }
 
 MBC_INL size_t  mbc_raw_len(const char* s) { const char* p = s; assert(s); --p; do {} while (*++p); return p - s; }
 
@@ -145,7 +146,7 @@ inline char*    Mbc_Env::catWidth(char dst[], size_t size, const char* src, size
 // デフォルトの環境/言語専用.
 
 #ifdef MBC_USE_DEFAULT_ENV
-void     mbs_init();                                    // cの場合の初期化. c++では自動.
+void     mbs_init(void);                                 // cの場合の初期化. c++では自動.
 void     mbs_setEnv(char const* lang);
 unsigned mbs_islead  (char c)               ;
 unsigned mbs_getc    (const char** ppStr)   ;
