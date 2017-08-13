@@ -169,19 +169,19 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="dcasm.c" />
-    <ClCompile Include="filn.c" />
-    <ClCompile Include="mbc.c" />
-    <ClCompile Include="strexpr.c" />
-    <ClCompile Include="subr.c" />
-    <ClCompile Include="tree.c" />
+    <ClCompile Include="..\src\dcasm.c" />
+    <ClCompile Include="..\src\filn.c" />
+    <ClCompile Include="..\src\mbc.c" />
+    <ClCompile Include="..\src\strexpr.c" />
+    <ClCompile Include="..\src\subr.c" />
+    <ClCompile Include="..\src\tree.c" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="filn.h" />
-    <ClInclude Include="mbc.h" />
-    <ClInclude Include="strexpr.h" />
-    <ClInclude Include="subr.h" />
-    <ClInclude Include="tree.h" />
+    <ClInclude Include="..\src\filn.h" />
+    <ClInclude Include="..\src\mbc.h" />
+    <ClInclude Include="..\src\strexpr.h" />
+    <ClInclude Include="..\src\subr.h" />
+    <ClInclude Include="..\src\tree.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

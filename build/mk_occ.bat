@@ -1,2 +1,2 @@
-occ -C+u -DNDEBUG -odcasm.exe dcasm.c filn.c subr.c strexpr.c tree.c mbc.c
+occ -C+u -DNDEBUG -odcasm.exe ..\src\dcasm.c ..\src\filn.c ..\src\subr.c ..\src\strexpr.c ..\src\tree.c ..\src\mbc.c
  

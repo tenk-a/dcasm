@@ -44,7 +44,7 @@
 				Name="VCCLCompilerTool"
 				AdditionalOptions="/J"
 				Optimization="0"
-				AdditionalIncludeDirectories="old_vc"
+				AdditionalIncludeDirectories="..\src\old_vc"
 				PreprocessorDefinitions="WIN32;_DEBUG;_CONSOLE"
 				StringPooling="true"
 				MinimalRebuild="false"
@@ -123,7 +123,7 @@
 			<Tool
 				Name="VCCLCompilerTool"
 				Optimization="0"
-				AdditionalIncludeDirectories="old_vc"
+				AdditionalIncludeDirectories="..\src\old_vc"
 				PreprocessorDefinitions="WIN32;_DEBUG;_CONSOLE"
 				StringPooling="true"
 				MinimalRebuild="false"
@@ -201,7 +201,7 @@
 			/>
 			<Tool
 				Name="VCCLCompilerTool"
-				AdditionalIncludeDirectories="old_vc"
+				AdditionalIncludeDirectories="..\src\old_vc"
 				PreprocessorDefinitions="WIN32;NDEBUG;_CONSOLE"
 				ExceptionHandling="0"
 				RuntimeLibrary="0"
@@ -281,7 +281,7 @@
 			/>
 			<Tool
 				Name="VCCLCompilerTool"
-				AdditionalIncludeDirectories="old_vc"
+				AdditionalIncludeDirectories="..\src\old_vc"
 				PreprocessorDefinitions="WIN32;NDEBUG;_CONSOLE"
 				ExceptionHandling="0"
 				RuntimeLibrary="0"
@@ -345,47 +345,47 @@
 			UniqueIdentifier="{4FC737F1-C7A5-4376-A066-2A32D752A2FF}"
 			>
 			<File
-				RelativePath=".\dcasm.c"
+				RelativePath="..\src\dcasm.c"
 				>
 			</File>
 			<File
-				RelativePath=".\filn.c"
+				RelativePath="..\src\filn.c"
 				>
 			</File>
 			<File
-				RelativePath=".\filn.h"
+				RelativePath="..\src\filn.h"
 				>
 			</File>
 			<File
-				RelativePath=".\mbc.c"
+				RelativePath="..\src\mbc.c"
 				>
 			</File>
 			<File
-				RelativePath=".\mbc.h"
+				RelativePath="..\src\mbc.h"
 				>
 			</File>
 			<File
-				RelativePath=".\strexpr.c"
+				RelativePath="..\src\strexpr.c"
 				>
 			</File>
 			<File
-				RelativePath=".\strexpr.h"
+				RelativePath="..\src\strexpr.h"
 				>
 			</File>
 			<File
-				RelativePath=".\subr.c"
+				RelativePath="..\src\subr.c"
 				>
 			</File>
 			<File
-				RelativePath=".\subr.h"
+				RelativePath="..\src\subr.h"
 				>
 			</File>
 			<File
-				RelativePath=".\tree.c"
+				RelativePath="..\src\tree.c"
 				>
 			</File>
 			<File
-				RelativePath=".\tree.h"
+				RelativePath="..\src\tree.h"
 				>
 			</File>
 		</Filter>

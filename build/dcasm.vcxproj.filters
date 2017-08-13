@@ -7,39 +7,39 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="dcasm.c">
+    <ClCompile Include="..\src\dcasm.c">
       <Filter>source files</Filter>
     </ClCompile>
-    <ClCompile Include="filn.c">
+    <ClCompile Include="..\src\filn.c">
       <Filter>source files</Filter>
     </ClCompile>
-    <ClCompile Include="mbc.c">
+    <ClCompile Include="..\src\mbc.c">
       <Filter>source files</Filter>
     </ClCompile>
-    <ClCompile Include="strexpr.c">
+    <ClCompile Include="..\src\strexpr.c">
       <Filter>source files</Filter>
     </ClCompile>
-    <ClCompile Include="subr.c">
+    <ClCompile Include="..\src\subr.c">
       <Filter>source files</Filter>
     </ClCompile>
-    <ClCompile Include="tree.c">
+    <ClCompile Include="..\src\tree.c">
       <Filter>source files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="filn.h">
+    <ClInclude Include="..\src\filn.h">
       <Filter>source files</Filter>
     </ClInclude>
-    <ClInclude Include="mbc.h">
+    <ClInclude Include="..\src\mbc.h">
       <Filter>source files</Filter>
     </ClInclude>
-    <ClInclude Include="strexpr.h">
+    <ClInclude Include="..\src\strexpr.h">
       <Filter>source files</Filter>
     </ClInclude>
-    <ClInclude Include="subr.h">
+    <ClInclude Include="..\src\subr.h">
       <Filter>source files</Filter>
     </ClInclude>
-    <ClInclude Include="tree.h">
+    <ClInclude Include="..\src\tree.h">
       <Filter>source files</Filter>
     </ClInclude>
   </ItemGroup>
