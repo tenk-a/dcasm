@@ -415,7 +415,7 @@ int FIL_GetTmpDir(char *t)
               #if 0
                 p = ".\\";
               #else
-                err_exit("環境変数TMPかTEMPでﾃﾝﾎﾟﾗﾘ･ﾃﾞｨﾚｸﾄﾘを指定してください\n");
+                err_exit("環境変数TMPかTEMPでテンポラリ・ディレクトリを指定してください\n");
               #endif
             }
         }

@@ -151,6 +151,9 @@ static filn_local_t*    filn_local = NULL;
 #define Z       (*filn_local)
 
 
+#define SAFE_FREE(p)        do { freeE(p); (p) = NULL; } while (0)
+
+
 
 /*------------------------------------------------------------------------*/
 /*------------------------------------------------------------------------*/
@@ -351,26 +354,12 @@ static char *strndupE(char const* s, size_t n)
     return p;
 }
 
-
 static int freeE(void* p)
 {
     if (p)
         free(p);
     return 0;
 }
-
-
-static int freeME(void* p)
-{
-    if (p) {
-        if (*(void**)p) {
-            free(*(void**)p);
-        }
-        *(void**)p = NULL;
-    }
-    return 0;
-}
-
 
 
 static SRCLIST* SRCLIST_Add(SRCLIST** p0, char const* s)
@@ -466,8 +455,8 @@ static TREE*    TREE_Make(TREE_NEW newElement,TREE_DEL delElement,TREE_CMP cmpEl
 
 static int  insRebalance(TREE_NODE** pp, int dir)
 {
-    int ndr, pt_dir, pt_ndr,grown;
-    TREE_NODE *ap,*bp,*cp;
+    int         ndr, pt_dir, pt_ndr,grown;
+    TREE_NODE   *ap,*bp,*cp;
 
     ndr = (dir == 0) ? 1 : 0;
     pt_dir = (1<<dir);
@@ -886,29 +875,30 @@ void Filn_Term(void)
     if (Filn == NULL)
         return;
 
-    freeE(Z.linbuf0);
-    freeE(Z.linbuf);
-    freeE(Z.M_mbuf);
+    SAFE_FREE(Z.linbuf0);
+    SAFE_FREE(Z.linbuf);
+    SAFE_FREE(Z.M_mbuf);
     for (i = 0; i < FILN_INCL_NUM; i++) {
         if (Z.inclStk[i].fp) {
             fclose(Z.inclStk[i].fp);
-            freeE(Z.inclStk[i].name);
+            Z.inclStk[i].fp = NULL;
+            SAFE_FREE(Z.inclStk[i].name);
         }
     }
   #if 0 // Z.M_argvは、とりあえず、いりくんでるので、無視
     for (i = 0; i < FILN_ARG_NUM; i++) {
-        freeME(&Z.M_argv[i]);
+        SAFE_FREE(Z.M_argv[i]);
     }
   #endif
     for (sl = Z.sl_lst; sl; sl = sn) {
         sn = sl->link;
-        freeE(sl->s);
-        freeE(sl);
+        SAFE_FREE(sl->s);
+        SAFE_FREE(sl);
     }
     Filn_ErrClose();
     MTREE_Term();
-    freeME(&filn_local);
-    freeME(&Filn);
+    SAFE_FREE(filn_local);
+    SAFE_FREE(Filn);
 }
 
 
@@ -920,8 +910,8 @@ static int  Filn_Close(void)
     }
     /*printf("%d %lx %s %d %lx ]\n",Z.inclNo, Z.inclp, Z.inclp->name, Z.inclp->line, Z.inclp->fp);*/
     fclose(Z.inclp->fp);
-    freeME(&Z.inclp->name);
-    memset(Z.inclp, 0, sizeof *Z.inclp);
+    SAFE_FREE(Z.inclp->name);
+    memset(Z.inclp, 0, sizeof(*Z.inclp));
     --Z.inclNo;
     if (Z.inclNo < 0)
         return -1;
@@ -1073,19 +1063,19 @@ void    Filn_PutsSrcLine(void)
     if (V.opt_orgSrc && V.opt_orgSrc == 3) {
       #if 1
         char *p = callocE(1, 8 + 12 + strlen(Z.inclp->name));
-        sprintf(p, "# %lu \"%s\"\n", Z.inclp->line, Z.inclp->name);
+        sprintf(p, "# %u \"%s\"\n", Z.inclp->line, Z.inclp->name);
         SRCLIST_Add(&Z.sl_lst, p);
       #else
         if (Z.errMacFnm && Z.errMacLin > 0) {
             if (Z.errMacLin+1 == Z.pc3line)
                 Z.pc3line--;
             if (Z.errMacLin != Z.pc3line || strcmp(Z.errMacFnm, Z.pc3name))
-                fprintf(V.wrtFp, "# %lu \"%s\"\n", Z.errMacLin, Z.errMacFnm);
+                fprintf(V.wrtFp, "# %u \"%s\"\n", Z.errMacLin, Z.errMacFnm);
             Z.pc3line = Z.errMacLin;
             strncpyZ(Z.pc3name, Z.errMacFnm, sizeof Z.pc3name);
         } else {
             if (Z.inclp->line != Z.pc3line || strcmp(Z.inclp->name, Z.pc3name))
-                fprintf(V.wrtFp, "# %lu \"%s\"\n", Z.inclp->line, Z.inclp->name);
+                fprintf(V.wrtFp, "# %u \"%s\"\n", Z.inclp->line, Z.inclp->name);
             Z.pc3line = Z.inclp->line;
             strncpyZ(Z.pc3name, Z.inclp->name, sizeof Z.pc3name);
         }
@@ -1147,13 +1137,13 @@ char *Filn_GetStr(char* buf, size_t len)
         char *s;
         if (V.opt_orgSrc == 4) {
             s = callocE(1, 8 + strlen(V.orgSrcPre) + strlen(Z.inclp->name) + 12 + strlen(V.orgSrcPost) + 4 + V.getsAddSiz);
-            sprintf(s, "%s %s %lu %s\n", V.orgSrcPre, Z.inclp->name, Z.inclp->line, V.orgSrcPost);
+            sprintf(s, "%s %s %u %s\n", V.orgSrcPre, Z.inclp->name, Z.inclp->line, V.orgSrcPost);
         } else if (V.opt_orgSrc == 3) {
             s = callocE(1, 8 + 12 + strlen(Z.inclp->name) + 4 + V.getsAddSiz);
-            sprintf(s, "# %lu \"%s\"\n", Z.inclp->line, Z.inclp->name);
+            sprintf(s, "# %u \"%s\"\n", Z.inclp->line, Z.inclp->name);
         } else if (V.opt_orgSrc == 2) {
             s = callocE(1, 8 + strlen(V.orgSrcPre) + strlen(Z.inclp->name) + 12 + strlen(buf) + strlen(V.orgSrcPost) + 4 + V.getsAddSiz);
-            sprintf(s, "%s %-13s %5lu : %s %s\n",   V.orgSrcPre, Z.inclp->name, Z.inclp->line, buf, V.orgSrcPost);
+            sprintf(s, "%s %-13s %5u : %s %s\n",   V.orgSrcPre, Z.inclp->name, Z.inclp->line, buf, V.orgSrcPost);
         } else {
             s = callocE(1, 4 + strlen(V.orgSrcPre) + strlen(Z.inclp->name) + strlen(buf) + strlen(V.orgSrcPost) + 4 + V.getsAddSiz);
             sprintf(s, "%s %s %s\n", V.orgSrcPre, buf, V.orgSrcPost);
@@ -1162,7 +1152,6 @@ char *Filn_GetStr(char* buf, size_t len)
     }
     return buf;
 }
-
 
 
 
@@ -1371,7 +1360,7 @@ static char *Filn_GetLine(void)
         }
     }
 
-    if (V.mac_chr && V.mac_chr == *SkipSpc(Z.linbuf0));
+    if (V.mac_chr && V.mac_chr == *SkipSpc(Z.linbuf0))
         macFlg = 1;
  
     s = Z.linbuf0;
@@ -1535,9 +1524,9 @@ typedef struct MTREE_T {
 enum {M_ATR_0=0, M_ATR_RSV, M_ATR_SET, M_ATR_DEF, M_ATR_MAC};
 enum {M_RSV_FILE=1, M_RSV_LINE, M_RSV_DATE, M_RSV_TIME};
 
+/* TREE ルーチンで、新しい要素を造るときに呼ばれる */
 static void*    MTREE_New(MTREE_T const* t)
 {
-    /* TREE ルーチンで、新しい要素を造るときに呼ばれる */
     MTREE_T*    p;
     p = callocE(1,sizeof(MTREE_T));
     memcpy(p, t, sizeof(MTREE_T));
@@ -1549,37 +1538,42 @@ static void*    MTREE_New(MTREE_T const* t)
     return p;
 }
 
+static void M_FreeArg(int* pArgc, char*** pArgv);
 
+/* TREE ルーチンで、メモリ開放のときに呼ばれる */
 static void MTREE_Del(void* ff)
 {
-    /* TREE ルーチンで、メモリ開放のときに呼ばれる */
-    freeE(ff);
+    MTREE_T*    p = (MTREE_T*)ff;
+    SAFE_FREE(*(char**)&p->name);
+    SAFE_FREE(p->buf);
+    M_FreeArg(&p->argc, &p->argv);
+    SAFE_FREE(ff);
 }
 
 
+/* TREE ルーチンで、用いられる比較条件 */
 static int  MTREE_Cmp(MTREE_T const* f1, MTREE_T const* f2)
 {
-    /* TREE ルーチンで、用いられる比較条件 */
     return strcmp(f1->name, f2->name);
 }
 
 
+/* TREE を初期化 */
 static void     MTREE_Init(void)
 {
-    /* TREE を初期化 */
     Z.mtree = TREE_Make((TREE_NEW)MTREE_New, (TREE_DEL)MTREE_Del, (TREE_CMP)MTREE_Cmp, (TREE_MALLOC)mallocE, (TREE_FREE)freeE);
 }
 
+/* TREE を開放 */
 static void MTREE_Term(void)
 {
-    /* TREE を開放 */
     TREE_Clear(Z.mtree);
 }
 
 
+/* 現在の名前が木に登録されたラベルかどうか探す */
 static MTREE_T* MTREE_Search(char const* lbl_name)
 {
-    /* 現在の名前が木に登録されたラベルかどうか探す */
     MTREE_T     t;
     MTREE_T*    p;
 
@@ -1635,14 +1629,17 @@ static MTREE_T  *MTREE_Add(char const* name, int atr, val_t argb, int argc, char
             if (md == 0)
                 Filn_Error("定義済みの#マクロ(%s)を再定義しようとした\n", p->name);
             if ((p->atr == M_ATR_DEF || p->atr == M_ATR_MAC) && (atr == M_ATR_DEF || atr == M_ATR_MAC)) {
-                if (p->buf)
-                    freeME(&p->buf);
+                SAFE_FREE(p->buf);
+             #if 1
+                M_FreeArg(&p->argc, &p->argv);
+             #else
                 if (p->argv) {
                     int i;
                     for (i = 0; i < p->argc; i++)
-                        freeE(p->argv[i]);
-                    freeME(&p->argv);
+                        SAFE_FREE(p->argv[i]);
+                    SAFE_FREE(p->argv);
                 }
+             #endif
                 p->atr = M_ATR_0;
                 goto J1;
             }
@@ -2579,13 +2576,52 @@ static char const* M_ChkEol_nm_l(int sym, char const* s, char const* nm, int l)
 
 /*---------------------------------------------------------*/
 
+
+static void M_MoveArg(int *pArgc, char*** pArgv)
+{
+    if (Z.M_argc > 0) {
+        char** argv = callocE(1,Z.M_argc*sizeof(char*));
+        memcpy(argv, Z.M_argv, Z.M_argc*sizeof(char*));
+        *pArgc = Z.M_argc;
+        *pArgv = argv;
+    } else {
+        *pArgc = 0;
+        *pArgv = NULL;
+    }
+    memset(Z.M_argv, 0, sizeof(Z.M_argv));
+    Z.M_argc = 0;
+}
+
+
+static void M_FreeArg(int* pArgc, char*** pArgv) {
+    int     i;
+    char**  argv = *pArgv;
+    if (argv) {
+        for (i = 0; i < *pArgc; i++) {
+            SAFE_FREE(argv[i]);
+        }
+    }
+    *pArgc = 0;
+}
+
+
+static void M_ClearArg(void)
+{
+    int i;
+    for (i = 0; i < Z.M_argc; i++) {
+        SAFE_FREE(Z.M_argv[i]);
+    }
+    memset(Z.M_argv, 0, sizeof(Z.M_argv));
+    Z.M_argc = 0;
+}
+
+
 static char const* M_GetArg(char const* s, int cont, char const* tit)
 {
     int  k,i,c;
 
     if (cont == 0) {
-        Z.M_argc = 0;
-        memset(Z.M_argv, 0, sizeof(Z.M_argv));
+        M_ClearArg();
     }
     k = 0;
     if (*s == '(') {
@@ -2662,11 +2698,15 @@ static int M_Define(char const* s)
     argv = NULL;
     if (*s == '(') {    /* 関数型のマクロか？ */
         s = M_GetArg(s,0,"define");
-        argc = Z.M_argc;
+        //argc = Z.M_argc;
+     #if 1
+        M_MoveArg(&argc, &argv);
+     #else
         if (Z.M_argc) {
             argv = callocE(1,Z.M_argc*sizeof(char*));
             memcpy(argv, Z.M_argv, Z.M_argc*sizeof(char*));
         }
+     #endif
         s = SkipSpc(s);
         atr = M_ATR_MAC;
     } else {
@@ -2681,6 +2721,7 @@ static int M_Define(char const* s)
     MTREE_Add(name, atr, argc, argc, argv, strdupE(s), 0);
     *(char*)p = c;
  #endif
+    M_ClearArg();
     return 0;
 }
 
@@ -2734,6 +2775,7 @@ static int M_Macro(char const* s)
     char        wk[8];
     char **     argv;
     int         argb;
+    int         argc;
     int         macflg;
     MTREE_T*    p;
     char*       fname;
@@ -2743,24 +2785,27 @@ static int M_Macro(char const* s)
     fname = Z.inclp->name;
     line  = Z.inclp->line-1;                        /* -1 は\n_S\xFF_\n の最初の\nを追加したための調整 */
 
-    /* 名前を得る */
+    argb   = 0;
+    argc   = 0;
+    argv   = NULL;
     macflg = 0;
+    /* 名前を得る */
     s = M_GetSym(s);
     if (Z.M_sym == 'A') {
         strcpy(name, Z.M_name);
         s = SkipSpc(s);
-        /*argb = 0;*/
-        argv = NULL;
         s = M_GetArg(s,0, "macro");
         argb = Z.M_argc;
         M_ChkEol(0,s);
     } else if (Z.M_sym == 0 || Z.M_sym == '\n' || Z.M_sym == M_C('/','/')) {    /* 名前無しマクロ */
         macflg = -1;
         strcpy(name, "_macro\xff_");
-        argb = 0;
-        argv = NULL;
+     #if 1
+        M_ClearArg();
+     #else
         Z.M_argc = 0;
         memset(Z.M_argv, 0, sizeof(Z.M_argv));
+     #endif
         /*s = SkipSpc(s);*/
         M_ChkEol(Z.M_sym,s);
     } else {
@@ -2801,11 +2846,17 @@ static int M_Macro(char const* s)
     sprintf(wk,"\n%c_E\xFF_\n",V.mac_chr);  /* exitm 処理用にマクロ範囲の終了位置を埋めこむ */
     StMbuf(wk);
 
+ #if 1
+    M_MoveArg(&argc, &argv);
+ #else
     if (Z.M_argc) {
         argv = callocE(1,Z.M_argc*sizeof(char*));
         memcpy(argv, Z.M_argv, Z.M_argc*sizeof(char*));
+        memset(Z.M_argv, 0, sizeof(Z.M_argv));
     }
-    p = MTREE_Add(name, M_ATR_MAC, argb, Z.M_argc, argv, strdupE(Z.M_mbuf), 0);
+ #endif
+    p = MTREE_Add(name, M_ATR_MAC, argb, argc, argv, strdupE(Z.M_mbuf), 0);
+    M_ClearArg();
     p->fname = fname;
     p->line  = line;
     if (macflg) {
@@ -2819,7 +2870,6 @@ static char const* M_Undef(char const* name)
 {
     MTREE_T*    p;
     char const* s;
-    int         i;
 
     //DB printf("[undef]%s\n", name);
     s = M_GetSym(name);
@@ -2827,14 +2877,17 @@ static char const* M_Undef(char const* name)
         return s;
     p = MTREE_Search(Z.M_name);
     if (p) {
-        if (p->buf) {
-            freeME(&p->buf);
-        }
+        SAFE_FREE(p->buf);
+      #if 1
+        M_FreeArg(&p->argc, &p->argv);
+      #else
         if (p->argv) {
+            int         i;
             for (i = 0; i < p->argc; i++)
-                freeE(p->argv[i]);
-            freeME(&p->argv);
+                SAFE_FREE(p->argv[i]);
+            SAFE_FREE(p->argv);
         }
+      #endif
         p->atr = M_ATR_0;
     }
     return s;
@@ -3344,9 +3397,13 @@ static void MM_Macc(char const* s, int exmacF, MTREE_T* m, char** v /*, char *fn
                     } while(Z.M_sym == ',');
                     /* ループ展開 */
                     MM_Macc_MIpr(name, &s, c, a /*, fname, line*/);
+                 #if 1
+                    M_FreeArg(&c, &a);
+                 #else
                     for (i = 0; i < c; i++)
-                        freeE(a[i]);
-                    freeME(&a);
+                        SAFE_FREE(a[i]);
+                    SAFE_FREE(a);
+                 #endif
                     goto LOOP;
                 } else if (k == M_ARRAY) {
                     //p = s;
@@ -3571,7 +3628,7 @@ static void MM_Macc(char const* s, int exmacF, MTREE_T* m, char** v /*, char *fn
                         /*mmp  = Z.M_mptr;*/
                         *Z.M_mptr = 0;
                         MM_Macc(tm, 1, m, v, "<macmac>");
-                        freeME(&tm);
+                        SAFE_FREE(tm);
                     }
                     //printf("<M\n");fflush(stdout);
 #endif
@@ -3625,7 +3682,7 @@ static char const* MM_MaccMacro(char const* s, int sh, MTREE_T* t)
         MM_Macc(t->buf, 1, NULL, NULL /*, t->fname, t->line*/, Z.MM_name[Z.MM_cnt-1]);
         Z.errMacFnm = q, Z.errMacLin = l;
         if (sh) StMbuf("\"");
-        freeME(&Z.MM_name[--Z.MM_cnt]);
+        SAFE_FREE(Z.MM_name[--Z.MM_cnt]);
 
     } else if (t->atr == M_ATR_MAC) {   /* 関数型マクロ名のとき */
         /* 引数が無しのとき、後ろの()があれば外し, M_ATR_DEFと同じ処理 */
@@ -3710,7 +3767,7 @@ static char const* MM_MaccMacro(char const* s, int sh, MTREE_T* t)
         for (i = (int)t->argb; i < t->argc; i++) {   /* ローカル名の処理 */
             if (strlen(V.localPrefix) == 0)
                 Filn_Exit("%clocal が生成するラベルの先頭文字列が指定されていない\n",V.mac_chr);
-            sprintf(Z.MM_wk, "%s%lu", V.localPrefix, Z.MM_localNo++);
+            sprintf(Z.MM_wk, "%s%u", V.localPrefix, Z.MM_localNo++);
             a[i] = strdupE(Z.MM_wk);
         }
         if (sh) StMbuf("\"");
@@ -3720,9 +3777,9 @@ static char const* MM_MaccMacro(char const* s, int sh, MTREE_T* t)
         Z.errMacFnm = q, Z.errMacLin = l;
         if (sh) StMbuf("\"");
         for (i = 0; i < t->argc; i++)
-            freeE(a[i]);
-        freeME(&a);
-        freeME(&Z.MM_name[--Z.MM_cnt]);
+            SAFE_FREE(a[i]);
+        SAFE_FREE(a);
+        SAFE_FREE(Z.MM_name[--Z.MM_cnt]);
 
     } else if (t->atr == M_ATR_RSV) {   /* 予約語ラベルだったとき */
         MM_MaccMacroAtrRsv((int)t->argb, t->name);
@@ -3877,7 +3934,7 @@ static void MM_Macc_MRept(char const* name, char* d, char const** s0 /*, char *f
     --Z.rept_argc;
     Z.rept_name[Z.rept_argc] = NULL;
     Z.rept_argv[Z.rept_argc] = NULL;
-    freeME(&q);
+    SAFE_FREE(q);
 
     /* エラー用macro,rept,ipr開始位置を更新 */
     Z.errMacFnm = fname, Z.errMacLin = line + n;
@@ -3951,7 +4008,7 @@ static void MM_Macc_MIpr(char const* name, char const** s0, int argc, char const
     --Z.rept_argc;
     Z.rept_name[Z.rept_argc] = NULL;
     Z.rept_argv[Z.rept_argc] = NULL;
-    freeME(&q);
+    SAFE_FREE(q);
 
     /* エラー用macro,rept,ipr開始位置を更新 */
     Z.errMacFnm = fname, Z.errMacLin = line + n;
@@ -4014,27 +4071,32 @@ static char *Filn_GetLineMac(void)
         o = M_OdrSearch(Z.M_name);
         if (o == M_MACRO) {
             if (M_Macro(s)) {
-                char **a = NULL;
-                int  i;
+                char**  a = NULL;
+                int     i;
+                int     ac = ((MTREE_T*)Z.macBgnStr)->argc;
                 /* 名前なしまくろのときの処理 */
-                if (((MTREE_T*)Z.macBgnStr)->argc) {
-                    a = callocE(sizeof(char*), ((MTREE_T*)Z.macBgnStr)->argc);
-                    for (i = 0; i < ((MTREE_T*)Z.macBgnStr)->argc; i++) {   /* ローカル名の処理 */
+                if (ac) {
+                    a = callocE(sizeof(char*), ac);
+                    for (i = 0; i < ac; i++) {   /* ローカル名の処理 */
                         if (strlen(V.localPrefix) == 0)
                             Filn_Exit("%clocal が生成するラベルの先頭文字列が指定されていない\n",V.mac_chr);
-                        sprintf(Z.MM_wk, "%s%lu", V.localPrefix, Z.MM_localNo++);
+                        sprintf(Z.MM_wk, "%s%u", V.localPrefix, Z.MM_localNo++);
                         a[i] = strdupE(Z.MM_wk);
                     }
                 }
                 InitStMbuf();
                 Z.errMacFnm = Z.inclp->name, Z.errMacLin = Z.inclp->line;
                 MM_Macc(((MTREE_T*)Z.macBgnStr)->buf, 1, (a ? ((MTREE_T*)Z.macBgnStr) : NULL), a/*, s, l*/, "<macbgn>");
+             #if 1
+                M_FreeArg(&ac, &a);
+             #else
                 if (((MTREE_T*)Z.macBgnStr)->argc) {
                     for (i = 0; i < ((MTREE_T*)Z.macBgnStr)->argc; i++) {
-                        freeE(a[i]);
+                        SAFE_FREE(a[i]);
                     }
-                    freeME(&a);
+                    SAFE_FREE(a);
                 }
+             #endif
                 Z.errMacFnm = NULL, Z.errMacLin = 0;
                 Z.MM_ptr = Z.M_mbuf;
                 M_Undef("_macro\xff_");
@@ -4058,7 +4120,7 @@ static char *Filn_GetLineMac(void)
             Z.errMacFnm = s, Z.errMacLin = l;
             MM_Macc(p, 1, NULL, NULL/*, s, l*/, "<iprpt>");
             Z.errMacFnm = NULL, Z.errMacLin = 0;
-            freeME(&p);
+            SAFE_FREE(p);
             Z.MM_ptr = Z.M_mbuf;
             goto RETRY;
         }
@@ -4352,7 +4414,7 @@ char *Filn_Gets(void)
         //Z.sl_buf  = s;
         Z.sl_lst    = sl->link;
         sl->s       = NULL;
-        freeE(sl);
+        SAFE_FREE(sl);
         return s;
     } else {
         s = Filn_GetsMif();
