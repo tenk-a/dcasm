@@ -14,48 +14,47 @@
 #include "strexpr.h"
 #include "mbc.h"
 
-
 #if defined(_WIN32) || defined(_MSC_VER)
 #define strcasecmp  stricmp
 #endif
 
 
 #if defined(_MSC_VER) && _MSC_VER < 1600
-#define S_FMT_LL            "I64"
+#define S_FMT_LL        "I64"
 #else
-#define S_FMT_LL            "ll"
+#define S_FMT_LL        "ll"
 #endif
-#define S_FMT_X             "%" S_FMT_LL "x"
-#define S_FMT_08X           "%08" S_FMT_LL "x"
-#define S_FMT_10D           "%10" S_FMT_LL "d"
+#define S_FMT_X         "%" S_FMT_LL "x"
+#define S_FMT_08X       "%08" S_FMT_LL "x"
+#define S_FMT_10D       "%10" S_FMT_LL "d"
 
-//typedef long          val_t;
 typedef int64_t         val_t;
 
-
+#define VER_STR         "0.51"
 
 void Usage(void)
 {
     err_printf(
-            "usage> dcasm [-opt] filename(s)   // v0.50 " __DATE__ "  " __TIME__ "  by tenk*\n"
+            "usage> dcasm [-opt] filename(s)   // " VER_STR " " __DATE__ "  " __TIME__ "  by tenk*\n"
+            "       https://github.com/tenk-a/dcasm/\n"
             "  バイナリ・データ生成を目的としたdcディレクティブのみのアセンブラ\n"
             "  ファイル名が複数指定された場合、一連のテキストとして順に読みこむ.\n"
             "  出力ファイル名は最初のファイル名の拡張子を.binにしたもの\n"
             "  -?        このヘルプ\n"
-            "  -iDIR     ヘッダファイルの入力ディレクトリの指定\n"
-            "  -oFILE    結果を FILE に出力.\n"
-            "  -eFILE    エラーを FILE に出力\n"
+            "  -i<DIR>   ヘッダファイルの入力ディレクトリの指定\n"
+            "  -o<FILE>  結果を FILE に出力.\n"
+            "  -e<FILE>  エラーを FILE に出力\n"
             "  -b<B|L>   デフォルトのエンディアンをB=ビッグ, L=リトルにする\n"
             "  -a<0|2|4|8> アライメント最大バイト数(0:調整無) ex)-a2ならdc.l,dc.qも2byte単位\n"
-            "  -rFILE    一番目に読込むファイルを指定(ルール/マクロ定義の記述ファイルを想定)\n"
-            "  -dNAME[=STR]  #define名定義\n"
-            "  -uNAME    #undefする\n"
-            "  -hFILE    xdefされたラベルを#define形式でファイルに出力する\n"
+            "  -r<FILE>  一番目に読込むファイルを指定(ルール/マクロ定義の記述ファイルを想定)\n"
+            "  -d<NAME>[=STR]  #define名定義\n"
+            "  -u<NAME>  #undefする\n"
+            "  -h<FILE>  xdefされたラベルを#define形式でファイルに出力する\n"
             "  -y        文字列中, C言語の\\エスケープシーケンスを有効  -y- 無効\n"
             "  -s        ;をコメント開始文字でなく複文用のセパレータとして扱う\n"
             "  -m        命令(文法)ヘルプを標準エラー出力\n"
-            "  -cUTF8    入力テキストをutf8として解釈.\n"
-            "  -cMBC     入力テキストをマルチバイト文字(SJIS)として解釈.\n"
+            "  -c<UTF8|MBC|SJIS|EUCJP>   入力テキストの文字エンコード指定.\n"
+            "                            ※MBCはWindows環境の文字コード\n"
             "  -v[-]     途中経過メッセージを表示する -v-しない\n"
             "  @FILE     レスポンス・ファイル指定\n"
     );
@@ -66,7 +65,7 @@ void Usage(void)
 void ManHelp(void)
 {
     err_printf(
-            "dcasm v0.50 の主な仕様\n"
+            "dcasm " VER_STR " の主な仕様\n"
             "10進数数値       0..9か_で構成される文字列. _は無視.\n"
             "16進数数値       C言語風0x0, インテル風0h, モトローラ風$0\n"
             " 2進数数値       C言語風拡張0b011、インテル風 011h 表記. モトローラ風表記%011\n"
@@ -77,8 +76,8 @@ void ManHelp(void)
             "LBL:             ラベル LBL を定義\n"
             "LBL: equ N       ラベル LBL の値を N にする\n"
             "xdef LBL         ラベル LBL を .h ファイルに#define定義で出力.\n"
-            "dc.<b|w|l|q> ... 1バイト/2バイト/4バイト整数列のデータ生成\n"
-            "db dw dd dq      〃\n"
+            "dc.<b|w|l|q> ... 1バイト/2バイト/4バイト/8バイト整数列のデータ生成\n"
+            "db dw dd dq  ... 〃\n"
             "ds.<b|w|l> N     Nバイトの領域を確保(0埋め)\n"
             "org  N           アドレスを Nにする(隙間は0埋め)\n"
             "even             アドレスが偶数になるよう調整(隙間は0埋め)\n"
@@ -86,12 +85,69 @@ void ManHelp(void)
             "auto_align 2|4|8 アライメント最大バイト数. ex)2 なら dc.l, dc.q でも2バイト単位\n"
             "big_endian       ビッグ・エンディアンにする\n"
             "little_endian    リトル・エンディアンにする\n"
+            "char_enc UTF8|MBC|SJIS|EUCJP  文字エンコーディング指定\n"
             "end              ソースの終わり(なくてもよい)\n"
-            "#if,#define,#macro,#rept,#ipr 等の条件アセンブルやマクロ命令あり\n"
+            "#if,#define,#set,#macro,#rept,#ipr 等の条件アセンブルやマクロ命令あり\n"
         );
     exit(1);
 }
 
+
+/* ------------------------------------------------------------------------ */
+typedef enum CharEnc {
+    CHARENC_NONE = 0,
+    CHARENC_MBC,        // Win-API
+    CHARENC_UTF8,
+    CHARENC_SJIS,
+    CHARENC_EUC,
+    CHARENC_ERR = -1,
+} CharEnc;
+
+static CharEnc charEnc_mode = CHARENC_NONE;
+
+
+void charEncSet(CharEnc enc) {
+    if (enc == CHARENC_ERR)
+        enc = CHARENC_NONE;
+    charEnc_mode = enc;
+    if (Filn)
+        Filn->opt_kanji = enc;
+    StrExpr_SetMbcMode(enc);
+
+    switch (enc) {
+    case CHARENC_MBC:
+        mbs_setEnv(NULL);
+        break;
+    case CHARENC_UTF8:
+        mbs_setEnv("ja_JP.UTF-8");
+        break;
+    case CHARENC_SJIS:
+        mbs_setEnv("sjis");
+        break;
+    case CHARENC_EUC:
+        mbs_setEnv("euc");
+        break;
+    default:
+        mbs_setEnv(NULL);
+        break;
+    }
+}
+
+int charEncStrCheck(char const* name) {
+    if (strcasecmp(name, "mbc") == 0) {
+        return CHARENC_MBC;
+    } else if (strcasecmp(name, "utf8") == 0 || strcasecmp(name, "utf-8") == 0) {
+        return CHARENC_UTF8;
+    } else if (strcasecmp(name, "sjis") == 0) {
+        return CHARENC_SJIS;
+    } else if (strcasecmp(name, "euc") == 0 || strcasecmp(name, "eucjp") == 0) {
+        return CHARENC_EUC;
+    } else if (strcasecmp(name, "none") == 0) {
+        return CHARENC_NONE;
+    } else {
+        return CHARENC_ERR;
+    }
+}
 
 /* ------------------------------------------------------------------------ */
 SLIST*      fileListTop = NULL;
@@ -100,16 +156,16 @@ char*       errname     = NULL;
 char*       rulename    = NULL;
 char*       hdrname     = NULL;
 static int  cescMode;           /* cの \ エスケープシーケンスを用いるか */
-static int  endianMode;         /* エンディアンの指定                   */
+static int  optEndianMode;      /* エンディアンの指定                   */
 static int  autoAlignMode = 3;  /* dc.w, dc.l, dc.q での、自動アライメントの方法 */
 static int  vmsgFlg;
 static int  useSep;
-static int  mbcMode = 0;
+static CharEnc  optCharEncMode;
 
 
 /** オプションの処理 
  */
-int Opts(char* a)
+int scanOpts(char* a)
 {
     char*   p;
     int     c;
@@ -142,15 +198,15 @@ int Opts(char* a)
         errname = strdupE(p);
         if (errname && errname[0]) {    /* エラー出力の準備 */
             if (freopen(errname,"at",stderr) == NULL)
-                err_exit("%s をオープンできません\n", errname);
+                err_exit("%s : -e open error\n", errname);
         }
         break;
     case 'B':
         c = *p++, c = toupper(c);
         if (c == 'L')
-            endianMode = 0;
+            optEndianMode = 0;
         else if (c == 'B')
-            endianMode = 1;
+            optEndianMode = 1;
         break;
     case 'A':
         c = *p;
@@ -179,17 +235,9 @@ int Opts(char* a)
         debugflag = (*p == '-') ? 0 : 1;
         break;
     case 'C':
-        if (strcasecmp(p, "mbc") == 0) {
-            mbs_setEnv(NULL);
-            mbcMode = 1;
-            Filn->opt_kanji = 1;
-            StrExpr_SetMbcMode(1);
-        } else if (strcasecmp(p, "utf8") == 0 || strcasecmp(p, "utf-8") == 0) {
-            mbs_setEnv("ja_JP.utf-8");
-            mbcMode = 2;
-            Filn->opt_kanji = 2;
-            StrExpr_SetMbcMode(2);
-        }
+        optCharEncMode = charEncStrCheck(p);
+        if (optCharEncMode == CHARENC_ERR)
+            err_exit("unkown -c param. : %s\n", a);
         break;
     case '\0':
         break;
@@ -214,7 +262,7 @@ void GetResFile(char* name)
         p = strtok(buf, " \t\n");
         do {
             if (*p == '-') {
-                Opts(p);
+                scanOpts(p);
             } else {
                 SLIST_Add(&fileListTop, p);
             }
@@ -229,7 +277,7 @@ void GetResFile(char* name)
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-#define MBS_ISLEAD(c)       (mbcMode && mbs_islead(c))
+#define MBS_ISLEAD(c)       (charEnc_mode && mbs_islead(c))
 
 typedef struct srcl_t {
     struct srcl_t*  link;
@@ -315,7 +363,6 @@ void srcl_free(srcl_t** p0)
  */
 char*   LinSep(char* st)
 {
-    /*static char linbuf[0x10000];*/
     static char* s;
     char*        d = linbuf;
     int          k;
@@ -472,7 +519,7 @@ label_t *LBL_Search(char const* lbl_name)
     memset (&t, 0, sizeof(label_t));
     t.name = lbl_name;
     if (t.name == NULL) {
-        srcl_error("ラベル登録でメモリがたりない\n");
+        srcl_error("bad name\n");
         exit(1);
     }
     return TREE_Search(LBL_tree, &t);
@@ -497,7 +544,8 @@ label_t *LBL_Add(char const* lbl_name, val_t val, int typ)
             if (typ == 0)
                 p->val = val;
         } else {
-            srcl_error("%s が多重定義かも\n", lbl_name);
+            //srcl_error("%s が多重定義かも\n", lbl_name);
+            srcl_error("'%s' is overloaded.\n", lbl_name);
             p = NULL;
         }
     } else {
@@ -534,6 +582,7 @@ enum {
   #if 0
     ODR_STRI_ADI,
   #endif
+    ODR_CHAR_ENC,
     ODR_END,
 };
 
@@ -595,7 +644,8 @@ odr_t*  odr_add(char const* name, int id)
     p = TREE_Insert(odr_tree, &t);
     if (odr_tree->flag == 0) {          /* 新規登録でなかった */
         /* グローバル宣言されたラベルのとき */
-        err_printf( "PRGERR:%s命令定義が多重！\n", name);
+        //err_printf( "PRGERR:多重定義 %s\n", name);
+        err_printf( "PRGERR:Overload %s\n", name);
         p = NULL;
     } else {
         p->id = id;
@@ -635,6 +685,7 @@ void    odr_init(void)
     odr_add("equ",          ODR_EQU);
     odr_add("xdef",         ODR_XDEF);
     odr_add("rem",          ODR_REM);
+    odr_add("char_enc",     ODR_CHAR_ENC);
 }
 
 void odr_term(void)
@@ -654,7 +705,7 @@ static ptrdiff_t        g_adr;          /* アドレス */
 ptrdiff_t               g_adrLinTop;    /* 行頭アドレス. StrExprから参照される */
 static unsigned char    *g_mem;         /* メモリ */
 static char             tok_name[TOK_NAME_LEN+2];
-
+static int              g_endianMode;
 
 char const* GetName(char *buf, char const* s)
 {
@@ -755,7 +806,8 @@ int  GetCh(char const** sp, int md)
             break;
         default:
             if (c < 0x20 || c == 0x7f || c >= 0xFD) {
-                srcl_error("\\の直後にコントロールコードがある\n");
+                //srcl_error("\\の直後にコントロールコードがある\n");
+                srcl_error("There is a control character immediately after \\\n");
             }
             ch = c;
         }
@@ -798,10 +850,17 @@ val_t  Expr(char const**    sp)
     if (n) {
         static char const* const msg[] = {
             "",
+         #if 0
             "想定していない式だ",
             "式の括弧が閉じていない",
             "式で0で割ろうとした",
             "式中に未定義の名前がある",
+         #else
+            "It is an unexpected expression.",
+            "Expression brackets are not closed.",
+            "Divide by 0.",
+            "There is an undefined name in the expression.",
+         #endif
         };
         if (n == 4)
             srcl_error("%s::%s\n", msg[n],expr_err_name);
@@ -874,11 +933,13 @@ void GetArg(char const** sp, val_t imm[], int num)
         imm[i] = Expr(&s);
         s = StrSkipSpc(s);
         if (*s != ',' && i < num-1)
-            srcl_error("引数の数が少ない(%d個のはずが%d個しかない)\n", num, i);
+            //srcl_error("引数の数が少ない(%d個のはずが%d個しかない)\n", num, i);
+            srcl_error("Too few argument(s)(need %d, but %d)\n", num, i);
         s++;
     }
     if (i >= num && s[-1] == ',') {
-        srcl_error("引数の数が多い(%d個以上あるかも)\n", num+1);
+        //srcl_error("引数の数が多い(%d個以上あるかも)\n", num+1);
+        srcl_error("Too many argument(s)(need %d)\n", num);
     }
     *sp = s;
 }
@@ -938,26 +999,32 @@ void putOne(val_t val, int md)
     if (md == 0) {
         POKEB(&g_mem[g_adr], (uint8_t)val);
         g_adr++;
-        if (val < -128 || val > 255)
-            srcl_error("値が 8ビット整数の範囲を超えている(" S_FMT_X ")\n", val);
+        if (val < -128 || val > 255) {
+            // srcl_error("値が 8ビット整数の範囲を超えている(" S_FMT_X ")\n", val);
+            srcl_error("Out of 8 bits integer(" S_FMT_X ")\n", val);
+        }
     } else if (md == 1) {
-        if (endianMode == 0)
+        if (g_endianMode == 0)
             POKEiW(&g_mem[g_adr], val);
         else
             POKEmW(&g_mem[g_adr], val);
         g_adr += 2;
-        if (val < -32768 || val > 0xFFFF)
-            srcl_error("値が16ビット整数の範囲を超えている(" S_FMT_X ")\n", val);
+        if (val < -32768 || val > 0xFFFF) {
+            //srcl_error("値が16ビット整数の範囲を超えている(" S_FMT_X ")\n", val);
+            srcl_error("Out of 16 bits integer(" S_FMT_X ")\n", val);
+        }
     } else if (md == 2) {
-        if (endianMode == 0)
+        if (g_endianMode == 0)
             POKEiD(&g_mem[g_adr], val);
         else
             POKEmD(&g_mem[g_adr], val);
         g_adr += 4;
-        if (val < -(val_t)2147483648 || val > (val_t)0xFFFFFFFF)
-            srcl_error("値が32ビット整数の範囲を超えている(" S_FMT_X ")\n", val);
+        if (val < -(val_t)2147483648 || val > (val_t)0xFFFFFFFF) {
+            //srcl_error("値が32ビット整数の範囲を超えている(" S_FMT_X ")\n", val);
+            srcl_error("Out of 32 bits integer(" S_FMT_X ")\n", val);
+        }
     } else if (md == 3) {
-        if (endianMode == 0)
+        if (g_endianMode == 0)
             POKEiQ(&g_mem[g_adr], val);
         else
             POKEmQ(&g_mem[g_adr], val);
@@ -1016,7 +1083,8 @@ void pass1_dc(char const** sp, int md)
 
     n = CountArg(sp, md);   // 引数の数を数える
     if (n == 0) {
-        srcl_error("dc に引数がない.\n");
+        //srcl_error("dc に引数がない.\n");
+        srcl_error("'dc' has no arguments.\n");
     } else {
         switch (md) {
         case 0:
@@ -1044,7 +1112,8 @@ void pass1_dc(char const** sp, int md)
 void gen_ds(val_t val, int md)
 {
     if (val < 0) {
-        srcl_error("ds の引数の値が負(この命令を無視).\n");
+        //srcl_error("ds の引数の値が負(この命令を無視).\n");
+        srcl_error("The argument value of 'ds' is negative (ignoring this instruction)\n");
     } else {
         switch (md) {
         case 0:
@@ -1070,7 +1139,8 @@ void gen_ds(val_t val, int md)
 void gen_align(val_t n)
 {
     if (n < 1 || n > 0x100000) {
-        srcl_error("align の引数が 0以下か 0x100001 以上が指定されている\n");
+        //srcl_error("align の引数が 0以下か 0x100001 以上が指定されている\n");
+        srcl_error("Argument of 'align' is out of range(1..0x100000, but %d)\n", n);
         n = 1;
     }
     g_adr = (ptrdiff_t)(((g_adr + n - 1) / n) * n);
@@ -1087,15 +1157,18 @@ void gen_autoAlign(int n)
         autoAlignMode = 2;
     else if (n == 8)
         autoAlignMode = 3;
-    else
-        srcl_error("auto_align の引数がおかしい(%d)\n", n);
+    else {
+        //srcl_error("auto_align の引数がおかしい(%d)\n", n);
+        srcl_error("The argument of 'auto_align' is wrong(%d)\n", n);
+    }
 }
 
 
 void gen_org(val_t val)
 {
     if (g_adr > val) {
-        srcl_error("org の引数が現在のアドレスより小さい(この指定を無視します)\n");
+        //srcl_error("org の引数が現在のアドレスより小さい(この指定を無視します)\n");
+        srcl_error("The argument of 'org' is smaller than the current address (ignoring this specification)\n");
     } else {
         g_adr = (ptrdiff_t)val;
     }
@@ -1104,7 +1177,7 @@ void gen_org(val_t val)
 
 void gen_endian(int md)
 {
-    endianMode = md;
+    g_endianMode = md;
 }
 
 
@@ -1175,6 +1248,7 @@ void GenStriEnd(int passNo)
 
 int Pass_Line(int passNo, char const* s0)
 {
+    char        name[TOK_NAME_LEN+2];
     val_t       imm[2];
     int         c;
     label_t*    cl = NULL;
@@ -1200,7 +1274,8 @@ int Pass_Line(int passNo, char const* s0)
         if (striMode) {
             GenStri(s0, passNo);
         } else {
-            srcl_error("命令の位置に、名前以外のものがある::%s\n",s);
+            //srcl_error("命令の位置に、名前以外のものがある::%s\n",s);
+            srcl_error("No order name: '%s'\n",s);
         }
         return 0;
     }
@@ -1213,17 +1288,20 @@ int Pass_Line(int passNo, char const* s0)
     }
     switch (c) {
     case ODR_NON:
-        srcl_error("命令の位置に、命令以外の名前がある::%s\n",tok_name);
+        //srcl_error("命令の位置に、命令以外の名前がある::%s\n",tok_name);
+        srcl_error("Not order name: '%s'\n",tok_name);
         return 0;
     case ODR_REM:
         return 0;
     case ODR_EQU:
         GetArg(&s, imm, 1);
         if (passNo == 1) {
-            if (cl)
+            if (cl) {
                 cl->val = imm[0];
-            else
-                srcl_error("equ定義でラベルが指定されていない\n");
+            } else {
+                //srcl_error("equ定義でラベルが指定されていない\n");
+                srcl_error("A label name is not specified with 'equ'\n");
+            }
         }
         break;
     case ODR_DC_B:
@@ -1295,34 +1373,43 @@ int Pass_Line(int passNo, char const* s0)
         striOpt  = (int)imm[0];
         break;
     case ODR_XDEF:
-        {
-            char name[TOK_NAME_LEN+2];
-            for (; ;) {
-                s = StrSkipSpc(s);
-                s = GetName(name, s);
-                s = StrSkipSpc(s);
-                if (passNo == 1) {
-                    if (name[0]) {
-                        LBL_Add(name, 0, 1);
-                    } else {
-                        srcl_error("xdef 定義にラベル名がない\n");
-                    }
+        for (; ;) {
+            s = StrSkipSpc(s);
+            s = GetName(name, s);
+            s = StrSkipSpc(s);
+            if (passNo == 1) {
+                if (name[0]) {
+                    LBL_Add(name, 0, 1);
+                } else {
+                    //srcl_error("xdef 定義にラベル名がない\n");
+                    srcl_error("Argument of 'xdef' has no label name\n");
                 }
-                if (*s != ',')
-                    break;
-                s++;
             }
+            if (*s != ',')
+                break;
+            s++;
         }
+        break;
+    case ODR_CHAR_ENC:
+        s = StrSkipSpc(s);
+        s = GetName(name, s);
+        s = StrSkipSpc(s);
+        charEnc_mode = charEncStrCheck(name);
+        if (charEnc_mode == CHARENC_ERR)
+            err_exit("Unkown 'char_enc' arguments. : '%s'\n", name);
+        charEncSet(charEnc_mode);
         break;
     case ODR_END:
         return 1;
     default:
-        srcl_error("PRGERR:知らない命令(%x)\n", c);
+        //srcl_error("PRGERR:知らない命令(%x)\n", c);
+        srcl_error("PRGERR: Unkown order(%x)\n", c);
         return 0;
     }
     s = StrSkipSpc(s);
     if (s && *s && *s != ';') {
-        srcl_error("行末に余分な文字列がある... %s\n", s);
+        //srcl_error("行末に余分な文字列がある... %s\n", s);
+        srcl_error("Extra characters at end of line: %s\n", s);
     }
     return 0;
 }
@@ -1333,6 +1420,9 @@ int Pass_Line(int passNo, char const* s0)
 void Pass(int passNo, srcl_t const* sr)
 {
     srcl_t const* p;
+
+    charEncSet(optCharEncMode);
+    gen_endian(optEndianMode);
 
     srcl_errorSw(passNo - 1);
     g_adr   = 0;
@@ -1408,7 +1498,7 @@ int main(int argc, char *argv[])
     for (i = 1; i < argc; i++) {
         p = argv[i];
         if (*p == '-') {
-            Opts(p);
+            scanOpts(p);
         } else if (*p == '@') {
             GetResFile(p+1);
         } else {
@@ -1419,7 +1509,8 @@ int main(int argc, char *argv[])
     Filn_ErrReOpen(NULL, stderr);
 
     if (fileListTop == NULL) {
-        err_printf("ファイル名を指定してください\n");
+        //err_printf("ファイル名を指定してください\n");
+        err_printf("There is no file name\n");
         Usage();
     }
 
@@ -1468,7 +1559,7 @@ int main(int argc, char *argv[])
         gen_hdr(hdrname);
     }
 
-    DB err_printf( "[後処理]\n");
+    DB err_printf( "[POST]\n");
     /* 後処理 */
     srcl_free(&srcl);
     odr_term();                         /* 命令表を削除 */

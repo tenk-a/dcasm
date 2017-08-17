@@ -1,4 +1,4 @@
-DCASM   v0.50
+DCASM   v0.51
 
 
 バイナリ・データ生成を目的として、  
@@ -10,8 +10,8 @@ xdef された外部ラベルを、C言語の .hのごとく、
     #define ラベル　アドレス  
 の形で生成することができます。
 
-マクロ機能は、#include #define #if  #macro #rept #ipr 等  
-で、拙作 acpp のプリプロセス機能を内臓しています。
+マクロ機能として #include #define #if  #macro #rept #ipr
+があります。
 
 
 アプリのライセンスは 二条項BSDライセンス です。
