@@ -385,10 +385,7 @@ v0.51 2017/08
 
 ■その他
 
-　アプリのライセンスは 二条項BSDライセンス。
-　license.txt を参照のこと。
-　※ソースレベルでは、各ソースに書かれたライセンスになる。
-　　（Boost Software License Version 1.0 や 二条項BSDライセンス)
+　Boost Software License Version 1.0
 
 
 gitリポジトリは

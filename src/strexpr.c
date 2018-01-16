@@ -55,7 +55,7 @@
 #define DCASM
 
 #ifdef DCASM
-extern ptrdiff_t g_adrLinTop;
+extern ptrdiff_t        g_adrLinTop;
 #endif
 
 typedef strexpr_val_t   val_t;
@@ -66,8 +66,8 @@ typedef int64_t         ival_t;
 #define isNAMETOP(ch)   (isalpha(ch) || (ch) == '_' || (ch) == '@' || (ch) == '.')
 #define isNAMECHR(ch)   (isNAMETOP(ch) || isdigit(ch) || (ch) == '$')
 
-//#define ISKANJI(c)      (mbc_mode && (((unsigned char)(c) >= 0x81 && (unsigned char)(c) <= 0x9F) || ((unsigned char)(c) >= 0xE0 && (unsigned char)(c) <= 0xFC)))
-#define IS_MBC_LEAD(c)    (mbc_mode && mbs_islead(c))
+//#define ISKANJI(c)    (mbc_mode && (((unsigned char)(c) >= 0x81 && (unsigned char)(c) <= 0x9F) || ((unsigned char)(c) >= 0xE0 && (unsigned char)(c) <= 0xFC)))
+#define IS_MBC_LEAD(c)  (mbc_mode && mbs_islead(c))
 
 static int          expr_err = 0;
 
