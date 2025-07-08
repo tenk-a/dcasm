@@ -3807,7 +3807,12 @@ static char const* MM_MaccMacro(char const* s, int sh, MTREE_T* t)
         for (i = 0; i < t->argc; i++)
             SAFE_FREE(a[i]);
         SAFE_FREE(a);
-        SAFE_FREE(Z.MM_name[--Z.MM_cnt]);
+		if (Z.MM_cnt > 0) {
+			--Z.MM_cnt;
+		    SAFE_FREE(Z.MM_name[Z.MM_cnt]);
+		} else {
+			//Filn_Warnning("inner error\n");
+		}
 
     } else if (t->atr == M_ATR_RSV) {   /* —\–ñŒêƒ‰ƒxƒ‹‚¾‚Á‚½‚Æ‚« */
         MM_MaccMacroAtrRsv((int)t->argb, t->name);
