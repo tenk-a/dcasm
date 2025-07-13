@@ -1047,7 +1047,11 @@ int  Filn_GetEnc(void)
 /* テキスト・エンコーディングを設定 */
 void Filn_SetEnc(int cp)
 {
-    if (cp == MBC_CP_UTF8 || cp == MBC_CP_SJIS || cp == MBC_CP_1BYTE || cp == MBC_CP_EUCJP) {
+    if (cp == MBC_CP_UTF8 || cp == MBC_CP_SJIS || cp == MBC_CP_1BYTE || cp == MBC_CP_EUCJP
+     #if defined(_WIN32)
+        || cp == MBC_CP_DBC
+     #endif
+    ) {
         if (V.opt_cp != cp) {
             V.opt_cp   = cp;
             Z.text_enc = mbc_cpToEnc(cp);
