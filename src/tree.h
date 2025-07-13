@@ -35,7 +35,7 @@ typedef struct TREE {
 TREE* TREE_Make(TREE_NEW newElement,TREE_DEL delElement,TREE_CMP cmpElement, TREE_MALLOC funcMalloc, TREE_FREE funcFree);
 void* TREE_Insert(TREE* tree, void* e);
 void* TREE_Search(TREE* tree, void* p);
-int   TREE_Delete(TREE* tree, void* e); /* —v‘f‚ğ–Ø‚©‚çíœ */
+int   TREE_Delete(TREE* tree, void* e); /* è¦ç´ ã‚’æœ¨ã‹ã‚‰å‰Šé™¤ */
 void  TREE_Clear(TREE* tree);
 void  TREE_DoAll(TREE* tree, void (*func)(void*));
 

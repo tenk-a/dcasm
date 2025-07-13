@@ -1,24 +1,24 @@
 /**
     @file   strexpr.c
-    @brief  ����������v�Z����
+    @brief  式文字列を計算する
     @author Masashi KITAMURA (tenka@6809.net)
     @date   1996-2017
     @note
 
-    StrExr() (dcasm�����o�[�W����)
+    StrExr() (dcasm特化バージョン)
 
     int StrExpr(char *s, char **s_nxt, long long *val)
-        ������ s��C���̎��Ƃ��Čv�Z���āA*val�Ɍv�Z���ʒl������ĕԂ�.
-        �܂�, s_nxt��NULL�łȂ���Ύg�p����������̎��̃A�h���X��
-        *s_next�ɓ���ĕԂ�.
-        �֐��̖߂�l�� 0�Ȃ琳��B�ȊO�̓G���[��������
-            1:�z�肵�Ă��Ȃ���������
-            2:���ʂ����Ă��Ȃ�
-            3:0�Ŋ��낤�Ƃ���
-            4:(�l�łȂ�)���O������
+        文字列 sをC似の式として計算して、*valに計算結果値をいれて返す.
+        また, s_nxtがNULLでなければ使用した文字列の次のアドレスを
+        *s_nextに入れて返す.
+        関数の戻り値は 0なら正常。以外はエラーがあった
+            1:想定していない式だった
+            2:括弧が閉じていない
+            3:0で割ろうとした
+            4:(値でない)名前がある
 
-    �@���� long long �Ōv�Z�B���Z�q�͈ȉ��̒ʂ�
-        �P��+ �P��- ( ) ~ !
+    　式は long long で計算。演算子は以下の通り
+        単項+ 単項- ( ) ~ !
         * / %
         + -
         << >>
@@ -31,15 +31,15 @@
 
 
     void StrExpr_SetNameChkFunc(int (*name2valFnc)(char *name, long long *valp))
-        �����ɖ��O�����ꂽ�Ƃ��A���̖��O��l�ɕϊ����郋�[�`����o�^����B
+        式中に名前が現れたとき、その名前を値に変換するルーチンを登録する。
 
         int name2valFnc(char *name, long long *valp)
 
-        �̂悤�Ȋ֐���StrExpr���p�҂��쐬���AStrExpr_SetNameChkFunc�œo�^����.
-        ���p�҂����֐��́Aname���󂯎��A�l�ɂ���Ȃ�΁A���̒l�� *valp
-        �ɂ���A0��Ԃ��B�l�ɏo���Ȃ��Ȃ�� ��0��Ԃ����ƁB
+        のような関数をStrExpr利用者が作成し、StrExpr_SetNameChkFuncで登録する.
+        利用者が作る関数は、nameを受け取り、値にするならば、その値を *valp
+        にいれ、0を返す。値に出来ないならば 非0を返すこと。
 
-    ���C�Z���X
+    ライセンス
         Boost Software License Version 1.0
  */
 
@@ -67,7 +67,8 @@ typedef int64_t         ival_t;
 #define isNAMECHR(ch)   (isNAMETOP(ch) || isdigit(ch) || (ch) == '$')
 
 //#define ISKANJI(c)    (mbc_mode && (((unsigned char)(c) >= 0x81 && (unsigned char)(c) <= 0x9F) || ((unsigned char)(c) >= 0xE0 && (unsigned char)(c) <= 0xFC)))
-#define IS_MBC_LEAD(c)  (mbc_mode && mbs_islead(c))
+#define IS_MBC_LEAD(c)  (mbc_mode && mbc_isLead(mbc_cur_enc, c))
+#define MBS_LEN1(s)     (mbc_strLen1(mbc_cur_enc, s))
 
 static int          expr_err = 0;
 
@@ -79,13 +80,15 @@ static val_t        sym_val = 0;
 static char         sym_name[SYM_NAME_LEN];
 static int          (*name2valFunc)(char const* name, val_t *valp) = NULL;
 static int          mbc_mode = 0;
+static mbc_enc_t    mbc_cur_enc = 0;
 
-#define CC(a,b)     ((a)*256+(b))
+#define CC(a,b)     ((a)*256|(b))
 
 
 void StrExpr_SetMbcMode(int mode)
 {
-    mbc_mode = mode;
+    mbc_mode    = mode;
+    mbc_cur_enc = mbc_cpToEnc(mode);
 }
 
 
@@ -103,7 +106,7 @@ static char const* GetName(char* name, char const* s)
 
     for (;;) {
         if (IS_MBC_LEAD(*s)) {
-            unsigned k = mbs_len1(s);
+            unsigned k = MBS_LEN1(s);
             if (i <= SYM_NAME_LEN-k) {
                 memcpy(name, s, k);
                 name += k;
@@ -163,9 +166,9 @@ static val_t get_dig(char const** sp)
             else
                 break;
         }
-  #ifndef DCASM /* 8�i���͎g��Ȃ� */
+  #ifndef DCASM /* 8進数は使わない */
     } else if (c == '0' && isdigit(*s)) {
-        /* �Ƃ肠�����A2,8,16�i�`�F�b�N */
+        /* とりあえず、2,8,16進チェック */
         for (; ;) {
             c = *s;
             if (c == '0' || c == '1') {
@@ -201,17 +204,17 @@ static val_t get_dig(char const** sp)
             bf = -1;
             s++;
         }
-        if (bf < 0) {   /* 2�i�������� */
+        if (bf < 0) {   /* 2進数だった */
             val = bv;
-        } else if (*s == 'H' || *s == 'h') {    /* 16�i�������� */
+        } else if (*s == 'H' || *s == 'h') {    /* 16進数だった */
             val = xv;
             s++;
-        } else /*if (of == 0)*/ {   /* 8�i�������� */
+        } else /*if (of == 0)*/ {   /* 8進数だった */
             val = ov;
         }
   #endif
     } else {
-        /* �Ƃ肠�����A2,10,16�i�`�F�b�N */
+        /* とりあえず、2,10,16進チェック */
         --s;
         for (; ;) {
             c = *s;
@@ -244,12 +247,12 @@ static val_t get_dig(char const** sp)
             bf = -1;
             s++;
         }
-        if (bf < 0) {   /* 2�i�������� */
+        if (bf < 0) {   /* 2進数だった */
             val = bv;
-        } else if (*s == 'H' || *s == 'h') {    /* 16�i�������� */
+        } else if (*s == 'H' || *s == 'h') {    /* 16進数だった */
             s++;
             val = xv;
-        } else /*if (df == 0)*/ {   /* 10�i�������� */
+        } else /*if (df == 0)*/ {   /* 10進数だった */
             val = dv;
         }
     }
@@ -333,7 +336,7 @@ static void sym_get(void)
         } else {
             sym = '0';
             sym_val = 0;
-            expr_err = 4;       /*printf("�l�łȂ����O������\n");*/
+            expr_err = 4;       /*printf("値でない名前がある\n");*/
         }
     } else {
         sym = ch;
@@ -365,7 +368,7 @@ static void sym_get(void)
         case '$':
             break;
         default:
-            //expr_err = 1;     /*printf("�z�肵�Ă��Ȃ������������ꂽ\n");*/
+            //expr_err = 1;     /*printf("想定していない文字があらわれた\n");*/
             break;
         }
     }
@@ -403,7 +406,7 @@ static val_t expr0(void)
             l = sym_val = get_dig2(&ch_p);
             sym = '0';
         } else if (expr_err == 0) {
-            expr_err = 1;       //printf("�z�肵�Ă��Ȃ�����\n");
+            expr_err = 1;       //printf("想定していない式だ\n");
         }
         sym_get();
   #endif
@@ -419,13 +422,13 @@ static val_t expr0(void)
         l = expr();
         if (sym != ')') {
             if (expr_err == 0)
-                expr_err = 2;   //printf("���ʂ����Ă��Ȃ�\n");
+                expr_err = 2;   //printf("括弧が閉じていない\n");
         } else {
             sym_get();
         }
     } else {
         if (expr_err == 0)
-            expr_err = 1;       //printf("�z�肵�Ă��Ȃ�����\n");
+            expr_err = 1;       //printf("想定していない式だ\n");
     }
     return l;
 }
@@ -444,7 +447,7 @@ static val_t expr1(void)
             if (n == 0) {
                 l = 0;
                 if (expr_err == 0)
-                    expr_err = 3;//printf("0�Ŋ��낤�Ƃ���\n");
+                    expr_err = 3;//printf("0で割ろうとした\n");
             } else {
                 l = l / n;
             }
@@ -453,7 +456,7 @@ static val_t expr1(void)
             if (n == 0) {
                 l = 0;
                 if (expr_err == 0)
-                    expr_err = 3;//printf("0�Ŋ��낤�Ƃ���\n");
+                    expr_err = 3;//printf("0で割ろうとした\n");
             } else {
                 l = (ival_t)l % (ival_t)n;
             }

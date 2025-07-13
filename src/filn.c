@@ -1,8 +1,8 @@
 /**
  *  @file   filn.cpp
- *  @brief  ğŒ¶¬Aƒ}ƒNƒ‹@”\‚ğ‚à‚Á‚½ƒeƒLƒXƒgƒtƒ@ƒCƒ‹“ü—Íƒ‹[ƒ`ƒ“.
+ *  @brief  æ¡ä»¶ç”Ÿæˆã€ãƒã‚¯ãƒ­æ©Ÿèƒ½ã‚’ã‚‚ã£ãŸãƒ†ã‚­ã‚¹ãƒˆãƒ•ã‚¡ã‚¤ãƒ«å…¥åŠ›ãƒ«ãƒ¼ãƒãƒ³.
  *  @author Masashi KITAMURA (tenka@6809.net)
- *  @date   1996-2017
+ *  @date   1996-2025
  *  @note
  *      Boost Software License Version 1.0
  */
@@ -15,24 +15,24 @@
 #include <time.h>
 #include <stdint.h>
 #include "Filn.h"
+#include "ujfile.h"
 #include "mbc.h"
 
 
-
 /*--------------------------------------------------------------------------*/
-/* ƒ‚ƒWƒ…[ƒ‹“à•Ï”                                                         */
+/* ãƒ¢ã‚¸ãƒ¥ãƒ¼ãƒ«å†…å¤‰æ•°                                                         */
 
 typedef unsigned char       UCHAR;
 
 #define STDERR              stderr
 
 #define FILN_FNAME_SIZE     2100
-#define FILN_NAME_SIZE      256     /* ƒ‰ƒxƒ‹–¼‚Ì•¶š”       */
-#define FILN_INCL_NUM       512     /* Å‘å includeƒtƒ@ƒCƒ‹” */
-#define FILN_ARG_NUM        256     /* ƒ}ƒNƒˆø”‚ÌÅ‘åŒÂ”   */
-#define FILN_MAC_NEST       256     /* ƒ}ƒNƒ“WŠJ‚ÌÅ‘åƒlƒXƒg” */
-#define FILN_REPT_NEST      256     /* rept‚ÌƒlƒXƒg”           */
-#define FILN_IF_NEST        128     /* if ‚ÌƒlƒXƒg”            */
+#define FILN_NAME_SIZE      256     /* ãƒ©ãƒ™ãƒ«åã®æ–‡å­—æ•°         */
+#define FILN_INCL_NUM       512     /* æœ€å¤§ includeãƒ•ã‚¡ã‚¤ãƒ«æ•°   */
+#define FILN_ARG_NUM        256     /* ãƒã‚¯ãƒ­å¼•æ•°ã®æœ€å¤§å€‹æ•°     */
+#define FILN_MAC_NEST       256     /* ãƒã‚¯ãƒ­å±•é–‹ã®æœ€å¤§ãƒã‚¹ãƒˆæ•° */
+#define FILN_REPT_NEST      256     /* reptã®ãƒã‚¹ãƒˆæ•°           */
+#define FILN_IF_NEST        128     /* if ã®ãƒã‚¹ãƒˆæ•°            */
 
 #define LINBUF0_SIZE        0x20000U
 #define LINBUF_SIZE         0x30000U
@@ -57,36 +57,35 @@ typedef struct SRCLIST {
 } SRCLIST;
 
 typedef struct FILN_INC_T {
-    FILE*       fp;
+    ujfile_t*   fp;
     char*       name;
-    uint32_t   line;
-    uint32_t   linCnt;
-/*  int     lcflg;*/
+    uint32_t    line;
+    uint32_t    linCnt;
 } FILN_INC_T;
 
 
 typedef struct filn_local_t {
 /*private:*/
 
-    /* ƒGƒ‰[ŠÖŒW */
+    /* ã‚¨ãƒ©ãƒ¼é–¢ä¿‚ */
     int         errNum;
     int         warNum;
     char const* errMacFnm;
     long        errMacLin;
 
-    /* s“ü—ÍAƒ}ƒNƒ“WŠJ‚Ìƒoƒbƒtƒ@ */
+    /* è¡Œå…¥åŠ›ã€ãƒã‚¯ãƒ­å±•é–‹ã®ãƒãƒƒãƒ•ã‚¡ */
     char*       linbuf0;
     char*       linbuf;
 
-    /* ƒ}ƒNƒ“WŠJŠÖŒW */
-    void*       mtree;             /* ƒ}ƒNƒEƒ‰ƒxƒ‹‚ğ“o˜^‚·‚é–Ø       */
-    void*       macBgnStr;         /* "begin"–½—ß—p                    */
+    /* ãƒã‚¯ãƒ­å±•é–‹é–¢ä¿‚ */
+    void*       mtree;             /* ãƒã‚¯ãƒ­ãƒ»ãƒ©ãƒ™ãƒ«ã‚’ç™»éŒ²ã™ã‚‹æœ¨       */
+    void*       macBgnStr;         /* "begin"å‘½ä»¤ç”¨                    */
 
     char*       M_str;
     char*       M_mbuf;
     char*       M_mbuf_end;
     int         M_mbuf_size;
-    char*       M_mptr;            /* •¶š—ñ‚Ì“WŠJ(o—Í)æƒoƒbƒtƒ@ */
+    char*       M_mptr;            /* æ–‡å­—åˆ—ã®å±•é–‹(å‡ºåŠ›)å…ˆãƒãƒƒãƒ•ã‚¡ */
 
     char        M_name[FILN_NAME_SIZE+2];
     val_t       M_val;
@@ -102,7 +101,7 @@ typedef struct filn_local_t {
     char        Expr0_nam[FILN_NAME_SIZE+2];
     char*       Expr0_fnm;
     uint32_t    Expr0_line;
-    int         errLblSkip; /* && ‚Ì¶•Ó‚ª‹U‚Ìê‡‚Ì‰E•Ó‚ÌƒXƒLƒbƒv—p */
+    int         errLblSkip; /* && ã®å·¦è¾ºãŒå½ã®å ´åˆã®å³è¾ºã®ã‚¹ã‚­ãƒƒãƒ—ç”¨ */
 
     char*       chkEol_name;
     uint32_t    chkEol_line;
@@ -112,32 +111,34 @@ typedef struct filn_local_t {
     char        MM_wk[30];
     char*       MM_ptr;
     long        MM_localNo;
-    int         MM_nest;                    /* ƒ}ƒNƒ“WŠJ‚ÌƒlƒXƒg” */
+    int         MM_nest;                    /* ãƒã‚¯ãƒ­å±•é–‹æ™‚ã®ãƒã‚¹ãƒˆæ•° */
 
     char        mac_chrs[2];
     char        mac_chrs2[2];
 
-    /* reptŠÇ— */
+    /* reptç®¡ç† */
     int         rept_argc;
     char const* rept_name[FILN_REPT_NEST+2];
     char const* rept_argv[FILN_REPT_NEST+2];
 
-    /* ifŠÇ— */
-    int         mifCur;                     /* #if‚ÌƒlƒXƒgŠÇ—    */
-    int         mifChkSnc;                  /* #if‚Ì‹U‚Ì”ÍˆÍ‚ÌƒlƒXƒgŠÇ— */
-    UCHAR       mifStk[FILN_IF_NEST+2];     /* #if ‚ÌƒlƒXƒgŠÇ— */
-    int         mifMacCur;                  /* ƒ}ƒNƒ‚ÌƒlƒXƒgŠÇ— */
-    UCHAR       mifMacStk[FILN_IF_NEST+2];  /* exitm —p ƒ}ƒNƒŠJn‚ÌmifCur‚Ì’l‚ğ•Û */
+    /* ifç®¡ç† */
+    int         mifCur;                     /* #ifã®ãƒã‚¹ãƒˆç®¡ç†    */
+    int         mifChkSnc;                  /* #ifã®å½ã®ç¯„å›²ã®ãƒã‚¹ãƒˆç®¡ç† */
+    UCHAR       mifStk[FILN_IF_NEST+2];     /* #if ã®ãƒã‚¹ãƒˆç®¡ç† */
+    int         mifMacCur;                  /* ãƒã‚¯ãƒ­ã®ãƒã‚¹ãƒˆç®¡ç† */
+    UCHAR       mifMacStk[FILN_IF_NEST+2];  /* exitm ç”¨ ãƒã‚¯ãƒ­é–‹å§‹æ™‚ã®mifCurã®å€¤ã‚’ä¿æŒ */
     int         MM_mifChk;
 
-    // Œ³ƒ\[ƒX‚ğƒRƒƒ“ƒg‰»‚µ‚Ä“ü—Í‚·‚é‚½‚ß‚Ìˆ— (V.opt_orgSrc w’è) —p
+    // å…ƒã‚½ãƒ¼ã‚¹ã‚’ã‚³ãƒ¡ãƒ³ãƒˆåŒ–ã—ã¦å…¥åŠ›ã™ã‚‹ãŸã‚ã®å‡¦ç† (V.opt_orgSrc æŒ‡å®šæ™‚) ç”¨
     //char*     sl_buf;
     SRCLIST*    sl_lst;
 
-    /* include“Ç‚İ‚±‚İ‚ÌŠÇ—ŠÖŒW */
+    /* includeèª­ã¿ã“ã¿ã®ç®¡ç†é–¢ä¿‚ */
     int         inclNo;
     FILN_INC_T* inclp;
     FILN_INC_T  inclStk[FILN_INCL_NUM];
+
+    mbc_enc_t   text_enc;
 
     /*char      Z.pc3name[1026];*/
     /*long      Z.pc3line = -1;*/
@@ -147,20 +148,22 @@ typedef struct filn_local_t {
 filn_t*                 Filn       = NULL;
 static filn_local_t*    filn_local = NULL;
 
-#define V       (*Filn)
-#define Z       (*filn_local)
+#define V               (*Filn)
+#define Z               (*filn_local)
 
 
-#define SAFE_FREE(p)        do { freeE(p); (p) = NULL; } while (0)
+#define SAFE_FREE(p)    do { freeE(p); (p) = NULL; } while (0)
 
 
 
 /*------------------------------------------------------------------------*/
 /*------------------------------------------------------------------------*/
-/* ƒGƒ‰[ŠÖŒW   */
+/* ã‚¨ãƒ©ãƒ¼é–¢ä¿‚   */
 
 
-
+/**
+ * Outputs an error message, including file name and line number if available.
+ */
 static int Filn_ErrVPrintf(char const* fmt, void *app)
 {
     int n;
@@ -170,13 +173,17 @@ static int Filn_ErrVPrintf(char const* fmt, void *app)
     }
     n = vfprintf(V.errFp, fmt, app);
     if (Z.errMacFnm && V.macErrFlg) {
-        fprintf(V.errFp, "(%-12s %5lu :\t%cmacro,%crept“™‚Ì’è‹`‚Ì’†)\n", Z.errMacFnm, Z.errMacLin, V.mac_chr, V.mac_chr);
+        //fprintf(V.errFp, "(%-12s %5lu :\t%cmacro,%creptç­‰ã®å®šç¾©ã®ä¸­)\n", Z.errMacFnm, Z.errMacLin, V.mac_chr, V.mac_chr);
+        fprintf(V.errFp, "(%-12s %5lu :\t%cmacro,%crept etc. in definition)\n", Z.errMacFnm, Z.errMacLin, V.mac_chr, V.mac_chr);
     }
     fflush(V.errFp);
     return n;
 }
 
 
+/**
+ * Outputs an error message and increments the error count.
+ */
 int Filn_Error(char const* fmt, ...)
 {
     va_list app;
@@ -189,6 +196,9 @@ int Filn_Error(char const* fmt, ...)
 }
 
 
+/**
+ * Outputs a warning message and increments the warning count.
+ */
 int Filn_Warnning(char const* fmt, ...)
 {
     va_list app;
@@ -201,6 +211,9 @@ int Filn_Warnning(char const* fmt, ...)
 }
 
 
+/**
+ * Outputs an error message and terminates the process.
+ */
 volatile int Filn_Exit(char const* fmt, ...)
 {
     va_list app;
@@ -209,15 +222,15 @@ volatile int Filn_Exit(char const* fmt, ...)
     Filn_ErrVPrintf(fmt, app);
     va_end(app);
   #if 0
-    fprintf(V.errFp, "  ƒGƒ‰[” %d. Œx” %d.\n", Z.errNum, Z.warNum);
+    fprintf(V.errFp, "  %d errors. %d warrnings.\n", Z.errNum, Z.warNum);
   #endif
     exit(1);
     return 0;
 }
 
 
-/** ƒGƒ‰[o—Íæ‚ğÄİ’è‚·‚éBname‚ª‚È‚¯‚ê‚ÎA’¼Ú fp ‚ğA–¼‘O‚ª‚ ‚ê‚Î
- * freopn ‚µ‚½ƒtƒ@ƒCƒ‹‚É‚µ‚Ü‚·Bfp == NULL ‚Ìê‡‚Í STDERR ‚ğÌ—p‚µ‚Ü‚·
+/** ã‚¨ãƒ©ãƒ¼å‡ºåŠ›å…ˆã‚’å†è¨­å®šã™ã‚‹ã€‚nameãŒãªã‘ã‚Œã°ã€ç›´æ¥ fp ã‚’ã€åå‰ãŒã‚ã‚Œã°
+ * freopn ã—ãŸãƒ•ã‚¡ã‚¤ãƒ«ã«ã™ã‚‹ã€‚fp == NULL ã®å ´åˆã¯ STDERR ã‚’æ¡ç”¨.
  */
 FILE *Filn_ErrReOpen(char const* name, FILE* fp)
 {
@@ -239,6 +252,9 @@ FILE *Filn_ErrReOpen(char const* name, FILE* fp)
 }
 
 
+/**
+ * Closes the error output file if not default.
+ */
 void Filn_ErrClose(void)
 {
     if (V.errFp && V.errFp != STDERR && V.errFp != stdout && V.errFp != stderr) {
@@ -248,8 +264,7 @@ void Filn_ErrClose(void)
 }
 
 
-
-/** ƒGƒ‰[‚ÆŒx‚Ì”‚ğ•Ô‚·
+/** ã‚¨ãƒ©ãƒ¼ã¨è­¦å‘Šã®æ•°ã‚’è¿”ã™
  */
 void Filn_GetErrNum(int* errNum, int* warnNum)
 {
@@ -263,17 +278,24 @@ void Filn_GetErrNum(int* errNum, int* warnNum)
 
 /*------------------------------------------------------------------------*/
 /*------------------------------------------------------------------------*/
-/* ©•ª‚É‚Æ‚Á‚Ä‚Ì”Ä—pƒTƒuƒ‹[ƒ`ƒ“”²ˆ */
+/* è‡ªåˆ†ã«ã¨ã£ã¦ã®æ±ç”¨ã‚µãƒ–ãƒ«ãƒ¼ãƒãƒ³æŠœç²‹ */
 
-#define MEMBER_OFFSET(t,m)  ((long)&(((t*)0)->m))   /* \‘¢‘Ìƒƒ“ƒo–¼‚ÌAƒIƒtƒZƒbƒg’l‚ğ‹‚ß‚é */
+
+/** æ§‹é€ ä½“ãƒ¡ãƒ³ãƒåã®ã€ã‚ªãƒ•ã‚»ãƒƒãƒˆå€¤ã‚’æ±‚ã‚ã‚‹ */
+#define MEMBER_OFFSET(t,m)  ((long)&(((t*)0)->m))
 
 //#define ISKANJI(c)      ((UCHAR)(c) >= 0x81 && ((UCHAR)(c) <= 0x9F || ((UCHAR)(c) >= 0xE0 && (UCHAR)(c) <= 0xFC)))
 //#define ISKANJI2(c)     ((UCHAR)(c) >= 0x40 && (UCHAR)(c) <= 0xfc && (c) != 0x7f)
 #define STREND(p)       ((p)+strlen(p))
 #define STPCPY(d,s)     (strcpy(d,s) + strlen(s))
 
-#define FILN_MBC_IS_LEAD(c) (V.opt_kanji && mbs_islead(c))
+#define MBC_IS_LEAD(c)  (V.opt_kanji && mbc_isLead(Z.text_enc, (c)))
+#define MBS_LEN1(s)     mbc_strLen1(Z.text_enc, (s))
+#define MBS_GETC(s)     mbc_getChr(Z.text_enc, (s))
 
+/**
+ * strncpy with guaranteed null-termination.
+ */
 static char* strncpyZ(char* dst, char const* src, size_t size)
 {
     strncpy(dst, src, size);
@@ -282,7 +304,7 @@ static char* strncpyZ(char* dst, char const* src, size_t size)
 }
 
 
-/** ƒGƒ‰[‚ª‚ ‚ê‚Î‘¦exit‚Ì malloc() 
+/** ã‚¨ãƒ©ãƒ¼ãŒã‚ã‚Œã°å³exitã® malloc()
  */
 static void* mallocE(size_t a)
 {
@@ -292,13 +314,14 @@ static void* mallocE(size_t a)
         a = 1;
     p = malloc(a);
     if (p == NULL) {
-        Filn_Exit("ƒƒ‚ƒŠ‚ª‘«‚è‚È‚¢(%d byte(s))\n",a);
+        //Filn_Exit("ãƒ¡ãƒ¢ãƒªãŒè¶³ã‚Šãªã„(%d byte(s))\n",a);
+        Filn_Exit("Insufficient memory (%d byte(s))\n",a);
     }
     return p;
 }
 
 
-/** ƒGƒ‰[‚ª‚ ‚ê‚Î‘¦exit‚Ì calloc() 
+/** ã‚¨ãƒ©ãƒ¼ãŒã‚ã‚Œã°å³exitã® calloc()
  */
 static void* callocE(size_t a, size_t b)
 {
@@ -310,13 +333,14 @@ static void* callocE(size_t a, size_t b)
         b = 1;
     p = calloc(a,b);
     if (p == NULL) {
-        Filn_Exit("ƒƒ‚ƒŠ‚ª‘«‚è‚È‚¢(%d*%d byte(s))\n",a,b);
+        //Filn_Exit("ãƒ¡ãƒ¢ãƒªãŒè¶³ã‚Šãªã„(%d*%d byte(s))\n",a,b);
+        Filn_Exit("Out of memory (%d*%d byte(s))\n",a,b);
     }
     return p;
 }
 
 
-/** ƒGƒ‰[‚ª‚ ‚ê‚Î‘¦exit‚Ì calloc()
+/** ã‚¨ãƒ©ãƒ¼ãŒã‚ã‚Œã°å³exitã® calloc()
  */
 static void* reallocE(void* a, size_t b)
 {
@@ -329,13 +353,14 @@ static void* reallocE(void* a, size_t b)
         b = 1;
     p = realloc(a,b);
     if (p == NULL) {
-        Filn_Exit("ƒƒ‚ƒŠ‚ª‘«‚è‚È‚¢(%d byte(s))\n",b);
+        //Filn_Exit("ãƒ¡ãƒ¢ãƒªãŒè¶³ã‚Šãªã„(%d byte(s))\n",b);
+        Filn_Exit("Out of memory (%d byte(s))\n",b);
     }
     return p;
 }
 
 
-/** ƒGƒ‰[‚ª‚ ‚ê‚Î‘¦exit‚Ì strdup()
+/** strdup() that immediately exits if there is an error.
  */
 static char* strdupE(char const* s)
 {
@@ -344,12 +369,14 @@ static char* strdupE(char const* s)
         return callocE(1,1);
     p = strdup(s);
     if (p == NULL) {
-        Filn_Exit("ƒƒ‚ƒŠ‚ª‘«‚è‚È‚¢(’·‚³%d+1)\n",strlen(s));
+        //Filn_Exit("ãƒ¡ãƒ¢ãƒªãŒè¶³ã‚Šãªã„(é•·ã•%d+1)\n",strlen(s));
+        Filn_Exit("Out of memory (length %d+1)\n",strlen(s));
     }
     return p;
 }
 
-/** ƒGƒ‰[‚ª‚ ‚ê‚Î‘¦exit‚Ì strdup()
+
+/** strndup() that immediately exits if there is an error.
  */
 static char *strndupE(char const* s, size_t n)
 {
@@ -361,6 +388,8 @@ static char *strndupE(char const* s, size_t n)
     return p;
 }
 
+/** Free memory.
+ */
 static int freeE(void* p)
 {
     if (p)
@@ -369,6 +398,8 @@ static int freeE(void* p)
 }
 
 
+/** Adds a new SRCLIST element to the list.
+ */
 static SRCLIST* SRCLIST_Add(SRCLIST** p0, char const* s)
 {
     SRCLIST* p;
@@ -393,7 +424,7 @@ static SRCLIST* SRCLIST_Add(SRCLIST** p0, char const* s)
 
 
 /*------------------------------------------------------------------------*/
-/* AVL–Ø */
+/* AVL Tree                                                               */
 
 typedef struct TREE_NODE {
     struct TREE_NODE *link[2];
@@ -421,7 +452,7 @@ typedef struct TREE {
 static TREE* TREE_Make(TREE_NEW newElement,TREE_DEL delElement,TREE_CMP cmpElement, TREE_MALLOC funcMalloc, TREE_FREE funcFree);
 static void* TREE_Insert(TREE* tree, void* e);
 static void* TREE_Search(TREE* tree, void* p);
-static int   TREE_Delete(TREE* tree, void* e);  /* —v‘f‚ğ–Ø‚©‚çíœ */
+static int   TREE_Delete(TREE* tree, void* e);
 static void  TREE_Clear(TREE* tree);
 static void  TREE_DoAll(TREE* tree, void (*func)(void*));
 
@@ -439,7 +470,7 @@ static TREE_MALLOC  funcMalloc;
 static TREE_FREE    funcFree;
 
 
-/** “ñ•ª–Ø‚ğì¬‚µ‚Ü‚·Bˆø”‚ÍA—v‘f‚Ìì¬,íœ,”äŠr‚Ì‚½‚ß‚ÌŠÖ”‚Ö‚ÌÎß²İÀ
+/** äºŒåˆ†æœ¨ã‚’ä½œæˆã—ã¾ã™ã€‚å¼•æ•°ã¯ã€è¦ç´ ã®ä½œæˆ,å‰Šé™¤,æ¯”è¼ƒã®ãŸã‚ã®é–¢æ•°ã¸ã®ï¾ï¾Ÿï½²ï¾ï¾€
  */
 static TREE*    TREE_Make(TREE_NEW newElement,TREE_DEL delElement,TREE_CMP cmpElement, TREE_MALLOC funcMalloc, TREE_FREE funcFree)
 {
@@ -473,20 +504,20 @@ static int  insRebalance(TREE_NODE** pp, int dir)
 
     grown = 0;
     ap = *pp;
-    if (ap->avltFlg == pt_ndr) {        /* Œ³X•Î‚Á‚Ä‚¢‚ê‚ÎA•Î‚Á‚½‘¤‚æ‚è‚PŒ¸‚é‚Ì‚Åƒoƒ‰ƒ“ƒX‚É‚È‚é*/
+    if (ap->avltFlg == pt_ndr) {        /* å…ƒã€…åã£ã¦ã„ã‚Œã°ã€åã£ãŸå´ã‚ˆã‚Šï¼‘æ¸›ã‚‹ã®ã§ãƒãƒ©ãƒ³ã‚¹ã«ãªã‚‹*/
         ap->avltFlg =  0;
-    } else if (ap->avltFlg == 0) {      /* Œ³Xƒoƒ‰ƒ“ƒXó‘Ô‚È‚ç‚Î */
-        ap->avltFlg |= pt_dir;          /* íœ‚Ì”½‘Î‘¤‚É•Î‚é */
+    } else if (ap->avltFlg == 0) {      /* å…ƒã€…ãƒãƒ©ãƒ³ã‚¹çŠ¶æ…‹ãªã‚‰ã° */
+        ap->avltFlg |= pt_dir;          /* å‰Šé™¤ã®åå¯¾å´ã«åã‚‹ */
         grown = 1;
-    } else {                            /* –Ø‚ÌÄ\¬ */
+    } else {                            /* æœ¨ã®å†æ§‹æˆ */
         bp = ap->link[dir];
-        if (bp->avltFlg == pt_dir) {    /* ˆê‰ñ“] */
+        if (bp->avltFlg == pt_dir) {    /* ä¸€å›è»¢ */
             ap->link[dir] = bp->link[ndr];
             bp->link[ndr] = ap;
             ap->avltFlg = 0;
             bp->avltFlg = 0;
             *pp = bp;
-        } else if (bp->avltFlg == pt_ndr) {         /* “ñ‰ñ“] */
+        } else if (bp->avltFlg == pt_ndr) {         /* äºŒå›è»¢ */
             cp = bp->link[ndr];
             ap->link[dir] = cp->link[ndr];
             bp->link[ndr] = cp->link[dir];
@@ -505,7 +536,7 @@ static int  insRebalance(TREE_NODE** pp, int dir)
             cp->avltFlg = 0;
             *pp = cp;
         } else {
-            ;   /* ‚±‚ê‚Í‚ ‚è‚¦‚È‚¢ */
+            ;   /* ã“ã‚Œã¯ã‚ã‚Šãˆãªã„ */
         }
     }
     return grown;
@@ -523,7 +554,7 @@ static int  insNode(TREE_NODE** pp)
         if (*pp == NULL)
             return 0;
         memset(*pp, 0x00, sizeof(TREE_NODE));
-        curTree->flag = 1;  /* V‚½‚Éì¬‚³‚ê‚½ */
+        curTree->flag = 1;  /* æ–°ãŸã«ä½œæˆã•ã‚ŒãŸ */
         (*pp)->element = newElement(elem);
         /* MSGF(("elem=%d\n",(*pp)->element));*/
         grown = 1;
@@ -555,7 +586,7 @@ static int  insNode(TREE_NODE** pp)
 }
 
 
-/** —v‘f‚ğ–Ø‚É‘}“ü
+/** è¦ç´ ã‚’æœ¨ã«æŒ¿å…¥
  */
 static void*    TREE_Insert(TREE* tree, void* e)
 {
@@ -573,7 +604,7 @@ static void*    TREE_Insert(TREE* tree, void* e)
 }
 
 
-/** –Ø‚©‚ç—v‘f‚ğ’T‚· 
+/** æœ¨ã‹ã‚‰è¦ç´ ã‚’æ¢ã™
  */
 static void* TREE_Search(TREE* tree, void* e)
 {
@@ -598,7 +629,7 @@ static void* TREE_Search(TREE* tree, void* e)
 }
 
 
-/** íœ‚Å–Ø‚Ìƒoƒ‰ƒ“ƒX‚ğ•Û‚Â‚½‚ß‚Ìˆ— 
+/** å‰Šé™¤ã§æœ¨ã®ãƒãƒ©ãƒ³ã‚¹ã‚’ä¿ã¤ãŸã‚ã®å‡¦ç†
  */
 static int      delRebalance(TREE_NODE** pp, int dir)
 {
@@ -610,15 +641,15 @@ static int      delRebalance(TREE_NODE** pp, int dir)
     pt_ndr = (1<<ndr);
 
     ap = *pp;
-    if (ap->avltFlg == 0) {             /* Œ³Xƒoƒ‰ƒ“ƒXó‘Ô‚È‚ç‚Î */
-        ap->avltFlg |= pt_ndr;          /* íœ‚Ì”½‘Î‘¤‚É•Î‚é */
+    if (ap->avltFlg == 0) {             /* å…ƒã€…ãƒãƒ©ãƒ³ã‚¹çŠ¶æ…‹ãªã‚‰ã° */
+        ap->avltFlg |= pt_ndr;          /* å‰Šé™¤ã®åå¯¾å´ã«åã‚‹ */
         shrinked    =  0;
-    } else if (ap->avltFlg == pt_dir) { /* Œ³X•Î‚Á‚Ä‚¢‚ê‚ÎA•Î‚Á‚½‘¤‚æ‚è‚PŒ¸‚é‚Ì‚Åƒoƒ‰ƒ“ƒX‚É‚È‚é*/
+    } else if (ap->avltFlg == pt_dir) { /* å…ƒã€…åã£ã¦ã„ã‚Œã°ã€åã£ãŸå´ã‚ˆã‚Šï¼‘æ¸›ã‚‹ã®ã§ãƒãƒ©ãƒ³ã‚¹ã«ãªã‚‹*/
         ap->avltFlg =  0;
         shrinked    =  1;
-    } else {                            /* –Ø‚ÌÄ\¬ */
+    } else {                            /* æœ¨ã®å†æ§‹æˆ */
         bp = ap->link[ndr];
-        if (bp->avltFlg != pt_dir) {    /* ˆê‰ñ“] */
+        if (bp->avltFlg != pt_dir) {    /* ä¸€å›è»¢ */
             ap->link[ndr] = bp->link[dir];
             bp->link[dir] = ap;
             if (bp->avltFlg == 0) {
@@ -631,7 +662,7 @@ static int      delRebalance(TREE_NODE** pp, int dir)
                 shrinked = 1;
             }
             *pp = bp;
-        } else {                        /* “ñ‰ñ“] */
+        } else {                        /* äºŒå›è»¢ */
             cp = bp->link[dir];
             ap->link[ndr] = cp->link[dir];
             bp->link[dir] = cp->link[ndr];
@@ -685,7 +716,7 @@ static int  DeleteNode(TREE_NODE** pp)
     shrinked = 0;
     p = *pp;
     if (p == NULL) {
-        return -1;      /* íœ‚·‚×‚« node ‚ªŒ©‚Â‚©‚ç‚È‚© */
+        return -1;      /* å‰Šé™¤ã™ã¹ã node ãŒè¦‹ã¤ã‹ã‚‰ãªã‹ */
         /*printf ("PRGERR: AVL-TREE DELETE\n");*/
         /*exit(1);*/
     }
@@ -726,7 +757,7 @@ static int  DeleteNode(TREE_NODE** pp)
 }
 
 
-/** —v‘f‚ğ–Ø‚©‚çíœ
+/** è¦ç´ ã‚’æœ¨ã‹ã‚‰å‰Šé™¤
  */
 static int TREE_Delete(TREE* tree, void* e)
 {
@@ -739,7 +770,7 @@ static int TREE_Delete(TREE* tree, void* e)
     elem        = e;
     c = DeleteNode(&tree->root);
     if (c < 0)
-        return -1;  /* íœ‚·‚×‚«‚à‚Ì‚ª‚İ‚­‚©‚ç‚È‚©‚Á‚½ */
+        return -1;  /* å‰Šé™¤ã™ã¹ãã‚‚ã®ãŒã¿ãã‹ã‚‰ãªã‹ã£ãŸ */
     return 0;
 }
 
@@ -759,7 +790,7 @@ static void DelAllNode(TREE_NODE* np)
 }
 
 
-/** –Ø‚ğÁ‹‚·‚é
+/** æœ¨ã‚’æ¶ˆå»ã™ã‚‹
  */
 static void TREE_Clear(TREE* tree)
 {
@@ -784,8 +815,8 @@ static void DoElement(TREE_NODE* np, void (*DoElem)(void*))
 }
 
 
-/** –Ø‚Ì‚·‚×‚Ä‚Ì—v‘f‚É‚Â‚¢‚Ä func(void *) ‚ğÀs. 
- *  func‚É‚Í—v‘f‚Ö‚Ìƒ|ƒCƒ“ƒ^‚ª“n‚³‚ê‚é
+/** æœ¨ã®ã™ã¹ã¦ã®è¦ç´ ã«ã¤ã„ã¦ func(void *) ã‚’å®Ÿè¡Œ.
+ *  funcã«ã¯è¦ç´ ã¸ã®ãƒã‚¤ãƒ³ã‚¿ãŒæ¸¡ã•ã‚Œã‚‹
  */
 static void TREE_DoAll(TREE* tree, void (*func)(void*))
 {
@@ -806,7 +837,7 @@ static void M_ClearArg(void);
 static int  Filn_Open0(char const *name, int md);
 
 
-/** ‰Šú‰»
+/** åˆæœŸåŒ–
  */
 filn_t  *Filn_Init(void)
 {
@@ -819,32 +850,36 @@ filn_t  *Filn_Init(void)
     if (filn_local == NULL)
         return NULL;
 
-    V.dir           = NULL;     /* include ‚ÉŒŸõ‚·‚éƒfƒBƒŒƒNƒgƒŠˆê—— */
-    V.errFp         = STDERR;   /* ƒGƒ‰[‚Ìo—Íæ                       */
-    V.opt_delspc    = 0;        /* 0ˆÈŠO‚È‚ç‚Î‹ó”’‚Ìˆ³k‚ğ‹–‚·          */
-    V.opt_dellf     = 1;        /* 0ˆÈŠO‚È‚ç‚Î‰üs‚É‚æ‚és˜AŒ‹‚ğs‚¤  */
-    V.opt_sscomment = 1;        /* 0ˆÈŠO‚È‚ç‚Î//ƒRƒƒ“ƒg‚ğíœ‚·‚é      */
-    V.opt_blkcomment= 1;        /* 0ˆÈŠO‚È‚ç‚Î^–ƒRƒƒ“ƒg–^‚ğíœ‚·‚é*/
-    V.opt_kanji     = 1;        /* 0ˆÈŠO‚È‚ç‚ÎMS‘SŠp‚É‘Î‰              */
-    V.opt_sq_mode   = 1;        /* ' ‚ğ ƒyƒA‚Å•¶š’è”‚Æ‚µ‚Äˆµ‚¤ */
-    V.opt_wq_mode   = 1;        /* " ‚ğ ƒyƒA‚Å•¶š—ñ’è”‚Æ‚µ‚Äˆµ‚¤ */
-    V.opt_mot_doll  = 0;        /* $ ‚ğ ƒ‚ƒgƒ[ƒ‰‚È 16i”’è”ŠJn•¶š‚Æ‚µ‚Äˆµ‚¤ */
-    V.opt_oct       = 1;        /* 1: 0‚©‚çn‚Ü‚é”š‚Í‚Wi”  0:10i */
+    V.dir           = NULL;     /* include æ™‚ã«æ¤œç´¢ã™ã‚‹ãƒ‡ã‚£ãƒ¬ã‚¯ãƒˆãƒªä¸€è¦§ */
+    V.errFp         = STDERR;   /* ã‚¨ãƒ©ãƒ¼ã®å‡ºåŠ›å…ˆ                       */
+    V.opt_delspc    = 0;        /* 0ä»¥å¤–ãªã‚‰ã°ç©ºç™½ã®åœ§ç¸®ã‚’è¨±ã™          */
+    V.opt_dellf     = 1;        /* 0ä»¥å¤–ãªã‚‰ã°ï¿¥æ”¹è¡Œã«ã‚ˆã‚‹è¡Œé€£çµã‚’è¡Œã†  */
+    V.opt_sscomment = 1;        /* 0ä»¥å¤–ãªã‚‰ã°//ã‚³ãƒ¡ãƒ³ãƒˆã‚’å‰Šé™¤ã™ã‚‹      */
+    V.opt_blkcomment= 1;        /* 0ä»¥å¤–ãªã‚‰ã°ï¼ï¼Šã‚³ãƒ¡ãƒ³ãƒˆï¼Šï¼ã‚’å‰Šé™¤ã™ã‚‹*/
+    V.opt_kanji     = 1;        /* 0ä»¥å¤–ãªã‚‰ã°MSå…¨è§’ã«å¯¾å¿œ              */
+    V.opt_cp        = 0;        /* Code Page : 0=auto, 437, 932, 65001  */
+    V.opt_sq_mode   = 1;        /* ' ã‚’ ãƒšã‚¢ã§æ–‡å­—å®šæ•°ã¨ã—ã¦æ‰±ã† */
+    V.opt_wq_mode   = 1;        /* " ã‚’ ãƒšã‚¢ã§æ–‡å­—åˆ—å®šæ•°ã¨ã—ã¦æ‰±ã† */
+    V.opt_mot_doll  = 0;        /* $ ã‚’ ãƒ¢ãƒˆãƒ­ãƒ¼ãƒ©ãª 16é€²æ•°å®šæ•°é–‹å§‹æ–‡å­—ã¨ã—ã¦æ‰±ã† */
+    V.opt_oct       = 1;        /* 1: 0ã‹ã‚‰å§‹ã¾ã‚‹æ•°å­—ã¯ï¼˜é€²æ•°  0:10é€² */
 
-    V.opt_orgSrc        = 0;        /* 1:Œ³‚Ìƒ\[ƒX‚àƒRƒƒ“ƒg‚É‚µ‚Äo—Í 2:TAG JUMPŒ`® 3:#line file  0:o—Í‚µ‚È‚¢ */
+    V.opt_orgSrc    = 0;        /* 1:å…ƒã®ã‚½ãƒ¼ã‚¹ã‚‚ã‚³ãƒ¡ãƒ³ãƒˆã«ã—ã¦å‡ºåŠ›
+                                   2:TAG JUMPå½¢å¼
+                                   3:#line file
+                                   0:å‡ºåŠ›ã—ãªã„                         */
 
-    V.orgSrcPre     = ";";      /* Œ³ƒ\[ƒXo—Í‚Ìs“ª‚É‚Â‚¯‚é•¶š—ñ   */
-    V.orgSrcPost    = "";       /* Œ³ƒ\[ƒXo—Í‚Ìs––‚É‚Â‚¯‚é•¶š—ñ   */
-    V.immMode       = 0;        /* 1:•„†•t10i 2:•„†–³10i 3:0xFF 4:$FF X(5:0FFh) */
-    V.cmt_chr[0]    = 0;        /* ƒRƒƒ“ƒgŠJn•¶š‚É‚È‚é•¶š */
-    V.cmt_chr[1]    = 0;        /* ƒRƒƒ“ƒgŠJn•¶š‚É‚È‚é•¶š */
-    V.cmt_chrTop[0] = 0;        /* s“ªƒRƒƒ“ƒgŠJn•¶š‚É‚È‚é•¶š */
-    V.cmt_chrTop[1] = 0;        /* s“ªƒRƒƒ“ƒgŠJn•¶š‚É‚È‚é•¶š */
-    V.macErrFlg     = 1;        /* ƒ}ƒNƒ’†‚ÌƒGƒ‰[s”Ô†‚à•\¦ 1:‚·‚é 0:‚µ‚È‚¢ */
-    V.mac_chr       = '#';      /* ƒ}ƒNƒsŠJn•¶š */
-    V.mac_chr2      = '#';      /* ƒ}ƒNƒ‚Ì“Áê“WŠJw’è•¶š.  */
+    V.orgSrcPre     = ";";      /* å…ƒã‚½ãƒ¼ã‚¹å‡ºåŠ›æ™‚ã®è¡Œé ­ã«ã¤ã‘ã‚‹æ–‡å­—åˆ—   */
+    V.orgSrcPost    = "";       /* å…ƒã‚½ãƒ¼ã‚¹å‡ºåŠ›æ™‚ã®è¡Œæœ«ã«ã¤ã‘ã‚‹æ–‡å­—åˆ—   */
+    V.immMode       = 0;        /* 1:ç¬¦å·ä»˜10é€² 2:ç¬¦å·ç„¡10é€² 3:0xFF 4:$FF X(5:0FFh) */
+    V.cmt_chr[0]    = 0;        /* ã‚³ãƒ¡ãƒ³ãƒˆé–‹å§‹æ–‡å­—ã«ãªã‚‹æ–‡å­— */
+    V.cmt_chr[1]    = 0;        /* ã‚³ãƒ¡ãƒ³ãƒˆé–‹å§‹æ–‡å­—ã«ãªã‚‹æ–‡å­— */
+    V.cmt_chrTop[0] = 0;        /* è¡Œé ­ã‚³ãƒ¡ãƒ³ãƒˆé–‹å§‹æ–‡å­—ã«ãªã‚‹æ–‡å­— */
+    V.cmt_chrTop[1] = 0;        /* è¡Œé ­ã‚³ãƒ¡ãƒ³ãƒˆé–‹å§‹æ–‡å­—ã«ãªã‚‹æ–‡å­— */
+    V.macErrFlg     = 1;        /* ãƒã‚¯ãƒ­ä¸­ã®ã‚¨ãƒ©ãƒ¼è¡Œç•ªå·ã‚‚è¡¨ç¤º 1:ã™ã‚‹ 0:ã—ãªã„ */
+    V.mac_chr       = '#';      /* ãƒã‚¯ãƒ­è¡Œé–‹å§‹æ–‡å­— */
+    V.mac_chr2      = '#';      /* ãƒã‚¯ãƒ­ã®ç‰¹æ®Šå±•é–‹æŒ‡å®šæ–‡å­—.  */
     V.localPrefix   = "_LCL_";
-    V.opt_yen       = 1;        /* \\•¶š‚ğC‚Ì‚æ‚¤‚Éˆµ‚í‚È‚¢. 1:‚·‚é 2:'"’†‚Ì‚İ  3,4:•ÏŠ·‚à‚µ‚¿‚á‚¤(ÀŒ±) */
+    V.opt_yen       = 1;        /* \\æ–‡å­—ã‚’Cã®ã‚ˆã†ã«æ‰±ã‚ãªã„. 1:ã™ã‚‹ 2:'"ä¸­ã®ã¿  3,4:å¤‰æ›ã‚‚ã—ã¡ã‚ƒã†(å®Ÿé¨“) */
 
     V.sym_chr_doll  = '$';
     V.sym_chr_atmk  = '@';
@@ -856,14 +891,14 @@ filn_t  *Filn_Init(void)
 
     memset(Z.inclStk, 0, sizeof(Z.inclStk));
     Z.inclNo = -1;
-    Z.inclp = &Z.inclStk[0];    /* ‚Æ‚è‚ ‚¦‚¸ƒ_ƒ~[‚ÅƒZƒbƒg */
+    Z.inclp = &Z.inclStk[0];    /* ã¨ã‚Šã‚ãˆãšãƒ€ãƒŸãƒ¼ã§ã‚»ãƒƒãƒˆ */
 
     /*Z.pc3line = -1; */
 
     Z.errNum = 0;
     Z.warNum = 0;
 
-    // ‘å—Ê‚Ìƒoƒbƒtƒ@‚ğŠm•Û
+    // å¤§é‡ã®ãƒãƒƒãƒ•ã‚¡ã‚’ç¢ºä¿
     Z.linbuf0     = callocE(1, LINBUF0_SIZE+2);
     Z.linbuf      = callocE(1, LINBUF_SIZE+2);
     Z.M_str       = Z.linbuf0;
@@ -871,14 +906,16 @@ filn_t  *Filn_Init(void)
     Z.M_mbuf      = callocE(1, Z.M_mbuf_size);
     Z.M_mbuf_end  = Z.M_mbuf + Z.M_mbuf_size;
 
-    // –¼‘OŠÇ—‚Ì–Ø‚Ì‰Šú‰»
+    Z.text_enc    = mbc_cpToEnc(437);
+
+    // åå‰ç®¡ç†ã®æœ¨ã®åˆæœŸåŒ–
     MTREE_Init();
     MM_Init();
     return Filn;
 }
 
 
-/** I—¹ˆ—.
+/** çµ‚äº†å‡¦ç†.
  */
 void Filn_Term(void)
 {
@@ -894,7 +931,7 @@ void Filn_Term(void)
     SAFE_FREE(Z.M_mbuf);
     for (i = 0; i < FILN_INCL_NUM; i++) {
         if (Z.inclStk[i].fp) {
-            fclose(Z.inclStk[i].fp);
+            ujfile_fclose(Z.inclStk[i].fp);
             Z.inclStk[i].fp = NULL;
             SAFE_FREE(Z.inclStk[i].name);
         }
@@ -916,10 +953,10 @@ void Filn_Term(void)
 static int  Filn_Close(void)
 {
     if (Z.inclNo < 0) {
-        Filn_Exit("PRGERR: too many 'Close'\n");
+        Filn_Exit("PrgErr: too many 'Close'\n");
     }
     /*printf("%d %lx %s %d %lx ]\n",Z.inclNo, Z.inclp, Z.inclp->name, Z.inclp->line, Z.inclp->fp);*/
-    fclose(Z.inclp->fp);
+    ujfile_fclose(Z.inclp->fp);
     SAFE_FREE(Z.inclp->name);
     memset(Z.inclp, 0, sizeof(*Z.inclp));
     --Z.inclNo;
@@ -982,7 +1019,7 @@ void Filn_AddIncDir(char const* dirname)
 void Filn_AddIncDir(char* dirname)
 {
     FILN_DIRS* p;
-    
+
     p = V.dir;
     if (p == NULL) {
         p       = callocE(1, sizeof(FILN_DIRS));
@@ -1001,17 +1038,50 @@ void Filn_AddIncDir(char* dirname)
 #endif
 
 
+/* ãƒ†ã‚­ã‚¹ãƒˆãƒ»ã‚¨ãƒ³ã‚³ãƒ¼ãƒ‡ã‚£ãƒ³ã‚°ã‚’å–å¾— */
+int  Filn_GetEnc(void)
+{
+    return V.opt_cp;
+}
+
+/* ãƒ†ã‚­ã‚¹ãƒˆãƒ»ã‚¨ãƒ³ã‚³ãƒ¼ãƒ‡ã‚£ãƒ³ã‚°ã‚’è¨­å®š */
+void Filn_SetEnc(int cp)
+{
+    if (cp == MBC_CP_UTF8 || cp == MBC_CP_SJIS || cp == MBC_CP_1BYTE || cp == MBC_CP_EUCJP) {
+        if (V.opt_cp != cp) {
+            V.opt_cp   = cp;
+            Z.text_enc = mbc_cpToEnc(cp);
+        }
+    } else {
+        Filn_Exit("Invalid character code specified (%d)\n", cp);
+    }
+}
+
 int  Filn_Open(char const* name)
 {
     return Filn_Open0(name, 0);
 }
 
+static ujfile_t* textOpen(char const* fname)
+{
+    ujfile_opts_t opts = { MBC_CP_NONE, MBC_CP_NONE, 1, 1, 0 };
+    opts.dst_cp  = V.opt_cp; //MBC_CP_UTF8;
+    ujfile_t* fp = ujfile_open(fname, &opts);
+    if (fp) {
+        int cp = ujfile_curCP(fp);
+        if (V.opt_cp == 0) {
+            V.opt_cp = cp;
+        }
+        Z.text_enc = mbc_cpToEnc(cp);
+    }
+    return fp;
+}
 
-/** md = 0 ‚È‚çAƒJƒŒƒ“ƒg‚©‚çŒŸõBmd!=0‚È‚çAƒJƒŒƒ“ƒgˆÈŠO‚ğŒŸõB
+/** md = 0 ãªã‚‰ã€ã‚«ãƒ¬ãƒ³ãƒˆã‹ã‚‰æ¤œç´¢ã€‚md!=0ãªã‚‰ã€ã‚«ãƒ¬ãƒ³ãƒˆä»¥å¤–ã‚’æ¤œç´¢ã€‚
  */
 static int  Filn_Open0(char const* name, int md)
 {
-    FILE*       fp = NULL;
+    ujfile_t*   fp = NULL;
     char        fnam[FILN_FNAME_SIZE];
     char*       p;
     char const* d;
@@ -1021,17 +1091,18 @@ static int  Filn_Open0(char const* name, int md)
     Z.mac_chrs[1]  = 0;
     Z.mac_chrs2[0] = V.mac_chr2;
     Z.mac_chrs2[1] = 0;
-    
-    if (Z.inclNo >= FILN_INCL_NUM)
-        Filn_Exit("include‚ÌƒlƒXƒg‚ª[‚·‚¬‚é\n");
 
+    if (Z.inclNo >= FILN_INCL_NUM) {
+        //Filn_Exit("includeã®ãƒã‚¹ãƒˆãŒæ·±ã™ãã‚‹\n");
+        Filn_Exit("Too much include nesting\n");
+    }
     if (name == NULL) {
         strcpy(fnam, "");
-        fp = stdin;
+        fp = textOpen(NULL);    //stdin;
     } else {
         strcpy(fnam, name);
         if (md == 0)
-            fp = fopen(fnam, "rt");
+            fp = textOpen(fnam);
         if (fp == NULL) {
             for (dl = V.dir; dl; dl = dl->link) {
                 d = dl->s;
@@ -1039,9 +1110,9 @@ static int  Filn_Open0(char const* name, int md)
                     strcpy(fnam, d);
                     p = STREND(fnam);
                     if (p[-1] != '\\' && p[-1] != '/')
-                        *p++ = '\\';
+                        *p++ = '/';
                     strcpy(p, name);
-                    fp = fopen(fnam, "rt");
+                    fp = textOpen(fnam);
                     if (fp != NULL)
                         break;
                 }
@@ -1049,21 +1120,21 @@ static int  Filn_Open0(char const* name, int md)
           #if 0
             if (md && fp == NULL) {
                 strcpy(fnam, name);
-                fp = fopen(fnam, "rt");
+                fp = textOpen(fnam);
             }
           #endif
             if (fp == NULL) {
-                Filn_Error("%s ‚ğƒI[ƒvƒ“‚Å‚«‚È‚©‚Á‚½.\n", name);
+                //Filn_Error("%s ã‚’ã‚ªãƒ¼ãƒ—ãƒ³ã§ããªã‹ã£ãŸ.\n", name);
+                Filn_Error("Could not open %s.\n", name);
                 return -1;
             }
         }
     }
     ++Z.inclNo;
-    Z.inclp = &Z.inclStk[Z.inclNo];
+    Z.inclp       = &Z.inclStk[Z.inclNo];
     Z.inclp->name = strdupE(fnam);
     Z.inclp->line = 0;
-    /*Z.inclp->lcflg = 0;*/
-    Z.inclp->fp = fp;
+    Z.inclp->fp   = fp;
     return 0;
 }
 
@@ -1097,7 +1168,7 @@ void    Filn_PutsSrcLine(void)
 #endif
 
 
-/** ˆês‚ğ“ü—Í‚·‚éBs––‚Ì‰üsƒR[ƒh‚Íæ‚èœ‚­
+/** ä¸€è¡Œã‚’å…¥åŠ›ã™ã‚‹ã€‚è¡Œæœ«ã®æ”¹è¡Œã‚³ãƒ¼ãƒ‰ã¯å–ã‚Šé™¤ã
  */
 char *Filn_GetStr(char* buf, size_t len)
 {
@@ -1113,12 +1184,12 @@ char *Filn_GetStr(char* buf, size_t len)
     for (;;) {
      /* J1: */
         if (i == len) {
-            /*Z.inclp->lcflg = 1;*/
-            Filn_Error("1s‚ª’·‚·‚¬‚é\n");
+            //Filn_Error("1è¡ŒãŒé•·ã™ãã‚‹\n");
+            Filn_Error("Line too long\n");
             break;
         }
-        c = fgetc(Z.inclp->fp);
-        if (feof(Z.inclp->fp)) {
+        c = ujfile_get1(Z.inclp->fp);
+        if (ujfile_eof(Z.inclp->fp)) {
           #if 0
          // if (Filn_Close()) {
          //     *p = 0;
@@ -1132,11 +1203,15 @@ char *Filn_GetStr(char* buf, size_t len)
             return NULL;
           #endif
         }
-        if (ferror(Z.inclp->fp)) {
-            Filn_Exit("ƒŠ[ƒhƒGƒ‰[‚ª‹N‚«‚Ü‚µ‚½.\n");
+     #if 0
+        if (ujfile_error(Z.inclp->fp)) {
+            //Filn_Exit("ãƒªãƒ¼ãƒ‰ã‚¨ãƒ©ãƒ¼ãŒèµ·ãã¾ã—ãŸ.\n");
+            Filn_Exit("Read error.\n");
         }
+     #endif
         if (c == '\0') {
-            Filn_Error("s’†‚É '\\0' ‚ª¬‚´‚Á‚Ä‚¢‚é\n");
+            //Filn_Error("è¡Œä¸­ã« '\\0' ãŒæ··ã–ã£ã¦ã„ã‚‹\n");
+            Filn_Error("Null character '\\0' mixed in line\n");
             c = ' ';
         }
         if (c == '\n')
@@ -1183,17 +1258,18 @@ static int StMbuf(char const* s)
     l = strlen(s);
     if (Z.M_mptr + l >= Z.M_mbuf_end) {
         char*   p;
-        // ‚Æ‚è‚ ‚¦‚¸AƒTƒCƒYŠg’£‚ğ‚µ‚İ‚é.
-        Z.M_mbuf_size += 0x1000;                    // ƒTƒCƒY‚ğŠg’£
-        p = reallocE(Z.M_mbuf, Z.M_mbuf_size);      // ƒƒ‚ƒŠÄŠm•Û
-        if (p == Z.M_mbuf) {                        // ƒAƒhƒŒƒX‚ª“¯‚¶‚È‚çAŒë–‚‰»‚¹‚é
-            Z.M_mptr = p + (Z.M_mptr - Z.M_mbuf);   // ƒ|ƒCƒ“ƒ^Ä¶¬
+        // ã¨ã‚Šã‚ãˆãšã€ã‚µã‚¤ã‚ºæ‹¡å¼µã‚’è©¦ã—ã¿ã‚‹.
+        Z.M_mbuf_size += 0x1000;                    // ã‚µã‚¤ã‚ºã‚’æ‹¡å¼µ
+        p = reallocE(Z.M_mbuf, Z.M_mbuf_size);      // ãƒ¡ãƒ¢ãƒªå†ç¢ºä¿
+        if (p == Z.M_mbuf) {                        // ã‚¢ãƒ‰ãƒ¬ã‚¹ãŒåŒã˜ãªã‚‰ã€èª¤é­”åŒ–ã›ã‚‹
+            Z.M_mptr = p + (Z.M_mptr - Z.M_mbuf);   // ãƒã‚¤ãƒ³ã‚¿å†ç”Ÿæˆ
             Z.M_mbuf = p;
             Z.M_mbuf_end = Z.M_mbuf + Z.M_mbuf_size;
-        } else {                                    // ƒAƒhƒŒƒX‚ª•Ï‚í‚é‚Æ‚â‚Î‚¢‚Ì‚ÅA‚ ‚«‚ç‚ß‚é
-            Filn_Exit("“ü—Í‚Åis˜AŒ‹‚â‚çƒ}ƒNƒ“WŠJ‚â‚ç‚Åjsƒoƒbƒtƒ@‚ª‚ ‚Ó‚ê‚Ü‚µ‚½\n");
+        } else {                                    // ã‚¢ãƒ‰ãƒ¬ã‚¹ãŒå¤‰ã‚ã‚‹ã¨ã‚„ã°ã„ã®ã§ã€ã‚ãã‚‰ã‚ã‚‹
+            //Filn_Exit("å…¥åŠ›ã§ï¼ˆè¡Œé€£çµã‚„ã‚‰ãƒã‚¯ãƒ­å±•é–‹ã‚„ã‚‰ã§ï¼‰è¡Œãƒãƒƒãƒ•ã‚¡ãŒã‚ãµã‚Œã¾ã—ãŸ\n");
+            Filn_Exit("Line buffer overflowed during input.\n");
         }
-        // ¦ Œã‚ÅAMM_Macc() ‚Å Z.M_mptr ‚ğˆê‘Ş”ğ‚·‚é‚Æ‚«Aƒ|ƒCƒ“ƒ^‚Å‚È‚­ƒIƒtƒZƒbƒg’l‚Ås‚¤‚æ‚¤‚É•ÏX‚·‚é‚±‚Æ„©•ª
+        // â€» å¾Œã§ã€MM_Macc() ã§ Z.M_mptr ã‚’ä¸€æ™‚é€€é¿ã™ã‚‹ã¨ãã€ãƒã‚¤ãƒ³ã‚¿ã§ãªãã‚ªãƒ•ã‚»ãƒƒãƒˆå€¤ã§è¡Œã†ã‚ˆã†ã«å¤‰æ›´ã™ã‚‹ã“ã¨ï¼è‡ªåˆ†
     }
     if (l)
         memcpy(Z.M_mptr, s, l);
@@ -1230,7 +1306,8 @@ static void StD_stat_mark(void)
 #define ISSPACE(c)      ( ((UCHAR)(c) <= 0x20 && (c) != '\n' && (c) != 0) || (c == 0x7f) /*|| ((UCHAR)(c) >= 0xfd)*/)
 #define TOEOS(s)        do{ do {c = *s++;} while (c != '\n' && c != 0);--s;}while(0)
 #define ER()            if (d >= endadr) goto ERR;
-#define StC(d,c)        (((d) > Z.linbuf+LINBUF_SIZE) ? Filn_Exit("¶¬‚³‚ê‚½‚Ps‚ª’·‰ß‚¬‚é\n") : 0, *d++ = (c) )
+//#define StC(d,c)      (((d) > Z.linbuf+LINBUF_SIZE) ? Filn_Exit("ç”Ÿæˆã•ã‚ŒãŸï¼‘è¡ŒãŒé•·éãã‚‹\n") : 0, *d++ = (c) )
+#define StC(d,c)        (((d) > Z.linbuf+LINBUF_SIZE) ? Filn_Exit("Generated line is too long\n") : 0, *d++ = (c) )
 #define GetC(d)         (*(unsigned char*)((d)++))
 
 
@@ -1322,7 +1399,8 @@ static unsigned M_GetEscChr(char const** s0)
         break;
     default:
         if ((/*c != '\t' &&*/ c < 0x20) || c == 0x7f || c >= 0xFD) {
-            Filn_Error("\\‚Ì’¼Œã‚ÉƒRƒ“ƒgƒ[ƒ‹ƒR[ƒh‚ª‚ ‚é\n");
+            //Filn_Error("\\ã®ç›´å¾Œã«ã‚³ãƒ³ãƒˆãƒ­ãƒ¼ãƒ«ã‚³ãƒ¼ãƒ‰ãŒã‚ã‚‹\n");
+            Filn_Error("Control code follows '\\'\n");
             /*s[-1] = ' ';*/
         }
     }
@@ -1331,7 +1409,7 @@ static unsigned M_GetEscChr(char const** s0)
 }
 
 
-/** 1s“ü—Í. ƒRƒƒ“ƒgíœA‹ó”’ˆ³kAs˜AŒ‹“™‚ğs‚¤
+/** 1è¡Œå…¥åŠ›. ã‚³ãƒ¡ãƒ³ãƒˆå‰Šé™¤ã€ç©ºç™½åœ§ç¸®ã€è¡Œé€£çµç­‰ã‚’è¡Œã†
  */
 static char *Filn_GetLine(void)
 {
@@ -1347,16 +1425,14 @@ static char *Filn_GetLine(void)
     d = Z.linbuf;
 
   LOOP:
-    /*Z.inclp->lcflg = 0;*/
     Z.inclp->linCnt++;
     if (Filn_GetStr(Z.linbuf0, LINBUF0_SIZE) == NULL) {
         Z.linbuf[0] = 0;
         Z.linbuf0[0] = 0;
         return NULL;
     }
-    /*if (Z.inclp->lcflg) Z.inclp->linCnt--;*/
 
-    /* s“ªƒRƒƒ“ƒg‚Ìƒ`ƒFƒbƒN */
+    /* è¡Œé ­ã‚³ãƒ¡ãƒ³ãƒˆã®ãƒã‚§ãƒƒã‚¯ */
     if (V.cmt_chrTop[0]) {
         s = SkipSpc(Z.linbuf0);
         if (*s == V.cmt_chrTop[0]) {
@@ -1374,14 +1450,14 @@ static char *Filn_GetLine(void)
 
     if (V.mac_chr && V.mac_chr == *SkipSpc(Z.linbuf0))
         macFlg = 1;
- 
+
     s = Z.linbuf0;
     for (; ;) {
         c = GetC(s);    //c = *s++;
-        if (c == 0) {                                       /* ‰üs */
+        if (c == 0) {   /* æ”¹è¡Œ */
       EOS:
             if (V.opt_dellf) {
-                if (V.opt_delspc) { /* 0ˆÈŠO‚È‚ç‚Î‹ó”’‚Ìˆ³k‚ğ‹–‚·          */
+                if (V.opt_delspc) {     /* 0ä»¥å¤–ãªã‚‰ã°ç©ºç™½ã®åœ§ç¸®ã‚’è¨±ã™ */
                     while (d > Z.linbuf) {
                         c = d[-1];
                         if (c == 0 || c > 0x20)
@@ -1397,21 +1473,21 @@ static char *Filn_GetLine(void)
             }
             break;
 
-        } else if (FILN_MBC_IS_LEAD(c)) {                           /* ‘SŠp */
+        } else if (MBC_IS_LEAD(c)) {    /* å…¨è§’ */
             --s;
-            l = mbs_len1(s);
+            l = MBS_LEN1(s);
             for (j = 0; j < l; ++j) {
                 c = GetC(s);
                 StC(d, c);
             }
 
-        } else if (c == '\'') {             /* '•¶š—ñ'‚Ìˆ— */
-            if (V.opt_sq_mode == 1) /* ƒyƒA‚Åˆµ‚¤‚Æ‚« */
+        } else if (c == '\'') {             /* 'æ–‡å­—åˆ—'ã®å‡¦ç† */
+            if (V.opt_sq_mode == 1) /* ãƒšã‚¢ã§æ‰±ã†ã¨ã */
                 goto A1;
-            /* •¶š’è”–³Œø‚©, 1ŒÂ‚Ì‚İ (6809Š¾) ‚Ì‚Æ‚« */
+            /* æ–‡å­—å®šæ•°ç„¡åŠ¹ã‹, 1å€‹ã®ã¿ (6809æ±—) ã®ã¨ã */
             StC(d,c);
 
-        } else if (c == '"' && V.opt_wq_mode) {             /* "•¶š—ñ"‚Ìˆ— */
+        } else if (c == '"' && V.opt_wq_mode) {             /* "æ–‡å­—åˆ—"ã®å‡¦ç† */
             int k;
           A1:
             k = c;
@@ -1420,7 +1496,8 @@ static char *Filn_GetLine(void)
                 c = GetC(s);    //c = *s++;
                 if (c == 0) {
                     if (macFlg == 0)
-                        Filn_Error("%s‚ÌI‚í‚è‚Ì%c‚ª‚È‚¢\n", (k=='"')?"\"•¶š—ñ\"" : "'•¶š'",k);
+                        //Filn_Error("%sã®çµ‚ã‚ã‚Šã®%cãŒãªã„\n", (k=='"')?"\"æ–‡å­—åˆ—\"" : "'æ–‡å­—'",k);
+                        Filn_Error("No closing %c for %s\n", k, (k=='"')?"\"string\"":"'character'");
                     /*StC(d,k);*/
                     --s;
                     break;
@@ -1433,14 +1510,16 @@ static char *Filn_GetLine(void)
                     StC(d,c);
                     c = GetC(s);    //c = *s++;
                     if (c == '\0') {
-                        Filn_Error("%s’†‚Å‚Í\\\\n‚É‚æ‚és˜AŒ‹‚Í‚Å‚«‚È‚¢\n",(k=='"')?"\"•¶š—ñ\"" : "'•¶š'");
+                        //Filn_Error("%sä¸­ã§ã¯\\\\nã«ã‚ˆã‚‹è¡Œé€£çµã¯ã§ããªã„\n",(k=='"')?"\"æ–‡å­—åˆ—\"" : "'æ–‡å­—'");
+                        Filn_Error("Cannot join lines with \\\\n inside %s\n", (k=='"')?"\"string\"":"'character'");
                         /*--d;*/
                         /*StC(d,'"');*/
                         --s;
                         break;
                     }
-                    if (FILN_MBC_IS_LEAD(c)) {
-                        Filn_Warnning("\\‚Ì’¼Œã‚É‘SŠp•¶š‚ª‚ ‚é\n");
+                    if (MBC_IS_LEAD(c)) {
+                        //Filn_Warnning("\\ã®ç›´å¾Œã«å…¨è§’æ–‡å­—ãŒã‚ã‚‹\n");
+                        Filn_Warnning("Full-width char follows '\\'\n");
                         goto J1;
                     }
                     if (V.opt_yen >= 3) {
@@ -1457,10 +1536,10 @@ static char *Filn_GetLine(void)
                     }
                     StC(d,c);
 
-                } else if (FILN_MBC_IS_LEAD(c)) {
+                } else if (MBC_IS_LEAD(c)) {
               J1:
                     --s;
-                    l = mbs_len1(s);
+                    l = MBS_LEN1(s);
                     for (j = 0; j < l; ++j) {
                         c = GetC(s);
                         StC(d, c);
@@ -1470,7 +1549,7 @@ static char *Filn_GetLine(void)
                 }
             }
 
-        } else if (ISSPACE(c)||c == 0xFF) {                 /* ‹ó”’ */
+        } else if (ISSPACE(c)||c == 0xFF) {                 /* ç©ºç™½ */
             if (V.opt_delspc) {
                 s = SkipSpc(s);
                 StC(d, ' ');
@@ -1480,10 +1559,10 @@ static char *Filn_GetLine(void)
 
         } else if (c == '/') {
             c = GetC(s);    //c = *s++;
-            if (c == '/' && V.opt_sscomment) {          /* // ƒRƒƒ“ƒg */
+            if (c == '/' && V.opt_sscomment) {          /* // ã‚³ãƒ¡ãƒ³ãƒˆ */
                 goto EOS;
 
-            } else if (c == '*' && V.opt_blkcomment) {  /* ^– ƒRƒƒ“ƒg –^ */
+            } else if (c == '*' && V.opt_blkcomment) {  /* ï¼ï¼Š ã‚³ãƒ¡ãƒ³ãƒˆ ï¼Šï¼ */
                 StC(d, ' ');
                 for (; ;) {
                     c = GetC(s);    //c = *s++;
@@ -1491,11 +1570,11 @@ static char *Filn_GetLine(void)
                         s = SkipSpc(s+1);
                         break;
                     } else if (c == '\0') {
-                        /*Z.inclp->lcflg = 0;*/
                         Z.inclp->linCnt++;
-                        if (Filn_GetStr(Z.linbuf0, LINBUF0_SIZE) == NULL)
-                            Filn_Exit("/*ƒRƒƒ“ƒg*/‚Ì“r’†‚ÅEOF‚ªŒ»‚ê‚½\n");
-                        /*if (Z.inclp->lcflg) Z.inclp->linCnt--;*/
+                        if (Filn_GetStr(Z.linbuf0, LINBUF0_SIZE) == NULL) {
+                            //Filn_Exit("/*ã‚³ãƒ¡ãƒ³ãƒˆ*/ã®é€”ä¸­ã§EOFãŒç¾ã‚ŒãŸ\n");
+                            Filn_Exit("EOF appeared in the middle of /* comment */\n");
+                        }
                         s = Z.linbuf0;
                     }
                 }
@@ -1518,25 +1597,25 @@ static char *Filn_GetLine(void)
 
 
 /*--------------------------------------------------------------------------*/
-/* #ƒvƒŠƒvƒƒZƒXˆ—                                                        */
+/* #ãƒ—ãƒªãƒ—ãƒ­ã‚»ã‚¹å‡¦ç†                                                        */
 /*--------------------------------------------------------------------------*/
 
 typedef struct MTREE_T {
-    char const* name;           /* ’è‹`–¼                           */
-    int         atr;            /* –¼‘O‚Ìˆø”‚Ì‘®« 0:íœ 1:set 2:define 3:macro */
-    val_t       argb;           /* ˆø”‚Ì” or #set’è”             */
-    int         argc;           /* ˆø”‚Ì”+ƒ[ƒJƒ‹–¼‚Ì”          */
-    char**      argv;           /* ˆø”ˆê——(+#local)                */
-    char*       buf;            /* #define,#macroƒoƒbƒtƒ@           */
-    char*       fname;          /* ’è‹`‚Ì‚ ‚Á‚½ƒtƒ@ƒCƒ‹–¼           */
-    int         line;           /* s”Ô†                           */
+    char const* name;           /* å®šç¾©å                           */
+    int         atr;            /* åå‰ã®å¼•æ•°ã®å±æ€§ 0:å‰Šé™¤ 1:set 2:define 3:macro */
+    val_t       argb;           /* å¼•æ•°ã®æ•° or #setå®šæ•°             */
+    int         argc;           /* å¼•æ•°ã®æ•°+ãƒ­ãƒ¼ã‚«ãƒ«åã®æ•°          */
+    char**      argv;           /* å¼•æ•°ä¸€è¦§(+#local)                */
+    char*       buf;            /* #define,#macroãƒãƒƒãƒ•ã‚¡           */
+    char*       fname;          /* å®šç¾©ã®ã‚ã£ãŸãƒ•ã‚¡ã‚¤ãƒ«å           */
+    int         line;           /* è¡Œç•ªå·                           */
 } MTREE_T;
 
 
 enum {M_ATR_0=0, M_ATR_RSV, M_ATR_SET, M_ATR_DEF, M_ATR_MAC};
 enum {M_RSV_FILE=1, M_RSV_LINE, M_RSV_DATE, M_RSV_TIME};
 
-/** TREE ƒ‹[ƒ`ƒ“‚ÅAV‚µ‚¢—v‘f‚ğ‘¢‚é‚Æ‚«‚ÉŒÄ‚Î‚ê‚é
+/** TREE ãƒ«ãƒ¼ãƒãƒ³ã§ã€æ–°ã—ã„è¦ç´ ã‚’é€ ã‚‹ã¨ãã«å‘¼ã°ã‚Œã‚‹
  */
 static void*    MTREE_New(MTREE_T const* t)
 {
@@ -1544,7 +1623,7 @@ static void*    MTREE_New(MTREE_T const* t)
     p = callocE(1,sizeof(MTREE_T));
     memcpy(p, t, sizeof(MTREE_T));
     p->name  = strdupE(t->name);
-    if (t->buf == 0 || t->buf == '\0')
+    if (t->buf == 0 || *t->buf == '\0')
         p->buf = calloc(1,1);
     else
         p->buf = strdupE(t->buf);
@@ -1553,7 +1632,7 @@ static void*    MTREE_New(MTREE_T const* t)
 
 static void M_FreeArg(int* pArgc, char*** pArgv);
 
-/** TREE ƒ‹[ƒ`ƒ“‚ÅAƒƒ‚ƒŠŠJ•ú‚Ì‚Æ‚«‚ÉŒÄ‚Î‚ê‚é
+/** TREE ãƒ«ãƒ¼ãƒãƒ³ã§ã€ãƒ¡ãƒ¢ãƒªé–‹æ”¾ã®ã¨ãã«å‘¼ã°ã‚Œã‚‹
  */
 static void MTREE_Del(void* ff)
 {
@@ -1565,7 +1644,7 @@ static void MTREE_Del(void* ff)
 }
 
 
-/** TREE ƒ‹[ƒ`ƒ“‚ÅA—p‚¢‚ç‚ê‚é”äŠrğŒ
+/** TREE ãƒ«ãƒ¼ãƒãƒ³ã§ã€ç”¨ã„ã‚‰ã‚Œã‚‹æ¯”è¼ƒæ¡ä»¶
  */
 static int  MTREE_Cmp(MTREE_T const* f1, MTREE_T const* f2)
 {
@@ -1573,14 +1652,14 @@ static int  MTREE_Cmp(MTREE_T const* f1, MTREE_T const* f2)
 }
 
 
-/** TREE ‚ğ‰Šú‰»
+/** TREE ã‚’åˆæœŸåŒ–
  */
 static void     MTREE_Init(void)
 {
     Z.mtree = TREE_Make((TREE_NEW)MTREE_New, (TREE_DEL)MTREE_Del, (TREE_CMP)MTREE_Cmp, (TREE_MALLOC)mallocE, (TREE_FREE)freeE);
 }
 
-/** TREE ‚ğŠJ•ú
+/** TREE ã‚’é–‹æ”¾
  */
 static void MTREE_Term(void)
 {
@@ -1588,7 +1667,7 @@ static void MTREE_Term(void)
 }
 
 
-/** Œ»İ‚Ì–¼‘O‚ª–Ø‚É“o˜^‚³‚ê‚½ƒ‰ƒxƒ‹‚©‚Ç‚¤‚©’T‚·
+/** ç¾åœ¨ã®åå‰ãŒæœ¨ã«ç™»éŒ²ã•ã‚ŒãŸãƒ©ãƒ™ãƒ«ã‹ã©ã†ã‹æ¢ã™
  */
 static MTREE_T* MTREE_Search(char const* lbl_name)
 {
@@ -1604,7 +1683,7 @@ static MTREE_T* MTREE_Search(char const* lbl_name)
 }
 
 
-/** ƒ‰ƒxƒ‹(–¼‘O)‚ğ–Ø‚É“o˜^‚·‚é
+/** ãƒ©ãƒ™ãƒ«(åå‰)ã‚’æœ¨ã«ç™»éŒ²ã™ã‚‹
  */
 static MTREE_T  *MTREE_Add(char const* name, int atr, val_t argb, int argc, char** argv, char* buf, int md)
 {
@@ -1646,19 +1725,10 @@ static MTREE_T  *MTREE_Add(char const* name, int atr, val_t argb, int argc, char
         } else {
             /*if (p != ((MTREE_T*)Z.macBgnStr))*/
             if (md == 0)
-                Filn_Error("’è‹`Ï‚İ‚Ì#ƒ}ƒNƒ(%s)‚ğÄ’è‹`‚µ‚æ‚¤‚Æ‚µ‚½\n", p->name);
+                Filn_Error("å®šç¾©æ¸ˆã¿ã®#ãƒã‚¯ãƒ­(%s)ã‚’å†å®šç¾©ã—ã‚ˆã†ã¨ã—ãŸ\n", p->name);
             if ((p->atr == M_ATR_DEF || p->atr == M_ATR_MAC) && (atr == M_ATR_DEF || atr == M_ATR_MAC)) {
                 SAFE_FREE(p->buf);
-             #if 1
                 M_FreeArg(&p->argc, &p->argv);
-             #else
-                if (p->argv) {
-                    int i;
-                    for (i = 0; i < p->argc; i++)
-                        SAFE_FREE(p->argv[i]);
-                    SAFE_FREE(p->argv);
-                }
-             #endif
                 p->atr = M_ATR_0;
                 goto J1;
             }
@@ -1689,7 +1759,7 @@ static MTREE_T  *MTREE_Add(char const* name, int atr, val_t argb, int argc, char
 
 
 /*--------------------------------------------------------------------------*/
-/* #–½—ß                                                                    */
+/* #å‘½ä»¤                                                                    */
 
 #define M_ODRNUM    (sizeof(M_odrs)/sizeof(M_odrs[0]))
 
@@ -1731,10 +1801,10 @@ static char const* const M_odrs[] = {
 
 
 /**
- *  key:‚³‚ª‚·•¶š—ñ‚Ö‚Ìƒ|ƒCƒ“ƒ^
- *  tbl:•¶š—ñ‚Ö‚Ìƒ|ƒCƒ“ƒ^‚ğ‚¨‚³‚ß‚½”z—ñ
- *  nn:”z—ñ‚ÌƒTƒCƒY
- *  •œ‹A’l:Œ©‚Â‚©‚Á‚½•¶š—ñ‚Ì”Ô†(0‚æ‚è)  ‚İ‚Â‚©‚ç‚È‚©‚Á‚½‚Æ‚«-1
+ *  key:ã•ãŒã™æ–‡å­—åˆ—ã¸ã®ãƒã‚¤ãƒ³ã‚¿
+ *  tbl:æ–‡å­—åˆ—ã¸ã®ãƒã‚¤ãƒ³ã‚¿ã‚’ãŠã•ã‚ãŸé…åˆ—
+ *  nn:é…åˆ—ã®ã‚µã‚¤ã‚º
+ *  å¾©å¸°å€¤:è¦‹ã¤ã‹ã£ãŸæ–‡å­—åˆ—ã®ç•ªå·(0ã‚ˆã‚Š)  ã¿ã¤ã‹ã‚‰ãªã‹ã£ãŸã¨ã-1
  */
  static int stblSearch(char const* const tbl[], int nn, char const* key)
 {
@@ -1814,16 +1884,17 @@ static char const* M_GetSymLabel(int c, char const* s, char const* p)
     *t = 0;
     l  = sizeof(Z.M_name) - 1;
     for (; ;) {
-        if (isalpha(c) || isdigit(c) || IsSymKigo(c)||c == 0xff) {  /* 0xff‚Í“à•”‚Å‚Ì“Á•Êˆ——p */
+        if (isalpha(c) || isdigit(c) || IsSymKigo(c)||c == 0xff) {  /* 0xffã¯å†…éƒ¨ã§ã®ç‰¹åˆ¥å‡¦ç†ç”¨ */
             if (l) {
                 *t++ = c;
                 l--;
             }
-        } else if (FILN_MBC_IS_LEAD(c)) {
+        } else if (MBC_IS_LEAD(c)) {
             --s;
-            k = mbs_len1(s);
+            k = MBS_LEN1(s);
             if (k < 2) {
-                Filn_Error("‘SŠp•¶š‚QƒoƒCƒg–Ú(ˆÈ~)‚ª‚¨‚©‚µ‚¢(%02x:%02x)\n",c,*s);
+                //Filn_Error("å…¨è§’æ–‡å­—ï¼’ãƒã‚¤ãƒˆç›®(ä»¥é™)ãŒãŠã‹ã—ã„(%02x:%02x)\n",c,*s);
+                Filn_Error("The second byte (or later) of a full-width character is invalid.(%02x:%02x)\n",c,*s);
             } else if (l >= k) {
                 unsigned j;
                 l -= k;
@@ -1846,15 +1917,16 @@ static char const* M_GetSymLabel(int c, char const* s, char const* p)
 static char const* M_GetSymSqt(unsigned c, char const* s)
 {
     while ((c = *s++) != '\'') {
-        if (FILN_MBC_IS_LEAD(c)) {
+        if (MBC_IS_LEAD(c)) {
             unsigned l;
             --s;
-            l = mbs_len1(s);
+            l = MBS_LEN1(s);
             if (l < 2) {
-                Filn_Warnning("'‚ÅˆÍ‚Ü‚ê‚½’†‚É•s³‚È‘SŠp‚ª‚ ‚é\n");
+                //Filn_Warnning("'ã§å›²ã¾ã‚ŒãŸä¸­ã«ä¸æ­£ãªå…¨è§’ãŒã‚ã‚‹\n");
+                Filn_Warnning("Invalid multibyte character in single quotes\n");
                 goto E1;
             }
-            c = mbs_getc(&s);
+            c = MBS_GETC(&s);
             if (c <= 0xffff && Z.M_val <= 0xFFFF)
                 Z.M_val = (Z.M_val << 16) | c;
             else
@@ -1866,13 +1938,15 @@ static char const* M_GetSymSqt(unsigned c, char const* s)
             else if (c > 255)   Z.M_val = (Z.M_val << 16) | c;
             else                Z.M_val = (Z.M_val <<  8) | c;
         } else if (c == 0) {
-            /* Filn_Error("'‚ª•Â‚¶‚Ä‚¢‚È‚¢\n"); */
+            /* Filn_Error("'ãŒé–‰ã˜ã¦ã„ãªã„\n"); */
+            /* Filn_Error("Unterminated single quote\n"); */
             --s;
             break;
         } else {
           #if 0
             if (/*(c != '\t' &&*/ c < 0x20) || c == 0x7f || c >= 0xFD) {
-                Filn_Error("'‚ÅˆÍ‚Ü‚ê‚½”ÍˆÍ‚ÉƒRƒ“ƒgƒ[ƒ‹ƒR[ƒh‚ª’¼Ú“ü‚Á‚Ä‚¢‚é\n");
+                //Filn_Error("'ã§å›²ã¾ã‚ŒãŸç¯„å›²ã«ã‚³ãƒ³ãƒˆãƒ­ãƒ¼ãƒ«ã‚³ãƒ¼ãƒ‰ãŒç›´æ¥å…¥ã£ã¦ã„ã‚‹\n");
+                Filn_Error("Control code directly within single quotes\n");
                 /*s[-1] = ' ';*/
             }
           #endif
@@ -1893,7 +1967,8 @@ static char const* M_GetSymWqt(unsigned c, char const* s)
     for (;;) {
         c = *s++;
         if (c == 0) {
-            /*Filn_Error("\"‚ª•Â‚¶‚Ä‚¢‚È‚¢\n");*/
+            /*Filn_Error("\"ãŒé–‰ã˜ã¦ã„ãªã„\n");*/
+            /*Filn_Error("Unterminated double quote\n");*/
             /* *p++ = '"'; */
             --s;
             break;
@@ -1902,12 +1977,13 @@ static char const* M_GetSymWqt(unsigned c, char const* s)
             *p++ = '"';
             break;
         }
-        if (FILN_MBC_IS_LEAD(c)) {
+        if (MBC_IS_LEAD(c)) {
             unsigned l;
             --s;
-            l = mbs_len1(s);
+            l = MBS_LEN1(s);
             if (l < 2) {
-                Filn_Warnning("'‚ÅˆÍ‚Ü‚ê‚½’†‚É•s³‚È‘SŠp‚ª‚ ‚é\n");
+                //Filn_Warnning("'ã§å›²ã¾ã‚ŒãŸä¸­ã«ä¸æ­£ãªå…¨è§’ãŒã‚ã‚‹\n");
+                Filn_Warnning("Invalid multibyte character in single quotes\n");
                 c = ' ';
                 *p++ = c;
             } else {
@@ -1924,7 +2000,8 @@ static char const* M_GetSymWqt(unsigned c, char const* s)
         }
       #if 0
         if (/*(c != '\t' &&*/ c < 0x20) || c == 0x7f || c >= 0xFD) {
-            Filn_Error("\"•¶š—ñ\"’†‚ÉƒRƒ“ƒgƒ[ƒ‹ƒR[ƒh‚ª’¼Ú“ü‚Á‚Ä‚¢‚é\n");
+            //Filn_Error("\"æ–‡å­—åˆ—\"ä¸­ã«ã‚³ãƒ³ãƒˆãƒ­ãƒ¼ãƒ«ã‚³ãƒ¼ãƒ‰ãŒç›´æ¥å…¥ã£ã¦ã„ã‚‹\n");
+            Filn_Error("Control code directly within double quotes\n");
             c = ' ';
             *p++ = c;
         }
@@ -1942,6 +2019,7 @@ static char const* M_GetSymDigit(int c, char const* s)
 
     Z.M_val = 0;
     if (c == '0' && *s == 'x') {
+        // Hexadecimal
         for (; ;) {
             c = *++s;
             if (isdigit(c))
@@ -1956,6 +2034,7 @@ static char const* M_GetSymDigit(int c, char const* s)
                 break;
         }
     } else if (c == '0' && *s == 'b') {
+        // Binary
         for (; ;) {
             c = *++s;
             if (c == '0' || c == '1')
@@ -1966,7 +2045,7 @@ static char const* M_GetSymDigit(int c, char const* s)
                 break;
         }
     } else if (V.opt_oct && c == '0' && isdigit(*s)) {
-        /* ‚Æ‚è‚ ‚¦‚¸A2,8,16iƒ`ƒFƒbƒN */
+        /* ã¨ã‚Šã‚ãˆãšã€2,8,16é€²ãƒã‚§ãƒƒã‚¯ */
         for (; ;) {
             c = *s;
             if (c == '0' || c == '1') {
@@ -2002,16 +2081,16 @@ static char const* M_GetSymDigit(int c, char const* s)
             bf = -1;
             s++;
         }
-        if (bf < 0) {   /* 2i”‚¾‚Á‚½ */
+        if (bf < 0) {   /* 2é€²æ•°ã ã£ãŸ */
             Z.M_val = bv;
-        } else if (*s == 'H' || *s == 'h') {    /* 16i”‚¾‚Á‚½ */
+        } else if (*s == 'H' || *s == 'h') {    /* 16é€²æ•°ã ã£ãŸ */
             Z.M_val = xv;
             s++;
-        } else /*if (of == 0)*/ {   /* 8i”‚¾‚Á‚½ */
+        } else /*if (of == 0)*/ {   /* 8é€²æ•°ã ã£ãŸ */
             Z.M_val = ov;
         }
     } else {
-        /* ‚Æ‚è‚ ‚¦‚¸A2,10,16iƒ`ƒFƒbƒN */
+        /* ã¨ã‚Šã‚ãˆãšã€2,10,16é€²ãƒã‚§ãƒƒã‚¯ */
         --s;
         for (; ;) {
             c = *s;
@@ -2044,12 +2123,12 @@ static char const* M_GetSymDigit(int c, char const* s)
             bf = -1;
             s++;
         }
-        if (bf < 0) {   /* 2i”‚¾‚Á‚½ */
+        if (bf < 0) {   /* 2é€²æ•°ã ã£ãŸ */
             Z.M_val = bv;
-        } else if (*s == 'H' || *s == 'h') {    /* 16i”‚¾‚Á‚½ */
+        } else if (*s == 'H' || *s == 'h') {    /* 16é€²æ•°ã ã£ãŸ */
             s++;
             Z.M_val = xv;
-        } else /*if (df == 0)*/ {   /* 10i”‚¾‚Á‚½ */
+        } else /*if (df == 0)*/ {   /* 10é€²æ•°ã ã£ãŸ */
             Z.M_val = dv;
         }
     }
@@ -2081,7 +2160,7 @@ static char const* M_GetSym0(char const* s)
         Z.M_sym = ' ';
         goto RET;
     }
-    if (isalpha(c) || IsSymKigo(c) || FILN_MBC_IS_LEAD(c)) {
+    if (isalpha(c) || IsSymKigo(c) || MBC_IS_LEAD(c)) {
         s = M_GetSymLabel(c, s, p);
         strcpy(Z.M_str,Z.M_name);
         Z.M_sym = 'A';
@@ -2146,7 +2225,7 @@ static char const* M_GetSym0(char const* s)
         goto SS;
     case '>':
         if (*s == '>')  c += *s++ * 256;
-        /*else if (*s == '<')   c += *s++ * 256;*/  /*“Áê‚·‚¬‚é‚Ì‚Å”p~^^; */
+        /*else if (*s == '<')   c += *s++ * 256;*/  /*ç‰¹æ®Šã™ãã‚‹ã®ã§å»ƒæ­¢^^; */
         else if (*s == '=') c += *s++ * 256;
         goto SS;
     case '/':
@@ -2249,7 +2328,8 @@ static int M_ChkDefined(char const** s0)
         s = M_GetSym(s);
         if (Z.M_sym != ')') {
             /*MM_MaccErr(fname, line);*/
-            Filn_Error("defined()‚Ìw’è‚ª‚¨‚©‚µ‚¢!\n");
+            //Filn_Error("defined()ã®æŒ‡å®šãŒãŠã‹ã—ã„!\n");
+            Filn_Error("Error in the specification of defined()!\n");
         }
     }
     *s0 = s;
@@ -2268,15 +2348,17 @@ static val_t M_Expr0(void)
 
     if (Z.M_sym == 'A') {
         MTREE_T *t;
-        if (strcmp(Z.M_name, "defined") == 0) { // #elif‚ÌƒoƒO‰‹}ˆ’uB–{—ˆ‚±‚±‚Å‚â‚é‚×‚«‚Å‚È‚¢cc
+        if (strcmp(Z.M_name, "defined") == 0) { // #elifã®ãƒã‚°å¿œæ€¥å‡¦ç½®ã€‚æœ¬æ¥ã“ã“ã§ã‚„ã‚‹ã¹ãã§ãªã„â€¦â€¦
             n = M_ChkDefined(&Z.M_ep);
         } else if ((t = MTREE_Search(Z.M_name)) == NULL) {
-            if (strcmp(Z.Expr0_nam, Z.M_name) == 0 && Z.Expr0_fnm == Z.inclp->name && Z.Expr0_line == Z.inclp->line)
+            if (strcmp(Z.Expr0_nam, Z.M_name) == 0 && Z.Expr0_fnm == Z.inclp->name && Z.Expr0_line == Z.inclp->line) {
                 ;
-            else if (Z.errLblSkip)
+            } else if (Z.errLblSkip) {
                 ;
-            else
-                Filn_Error("%cs‚Å–¢’è‹`‚Ì–¼‘O %s ‚ªQÆ‚³‚ê‚½\n", V.mac_chr, Z.M_name);
+            } else {
+                //Filn_Error("%cè¡Œã§æœªå®šç¾©ã®åå‰ %s ãŒå‚ç…§ã•ã‚ŒãŸ\n", V.mac_chr, Z.M_name);
+                Filn_Error("%cUndefined name %s referenced at line\n", V.mac_chr, Z.M_name);
+            }
             Z.Expr0_fnm  = Z.inclp->name;
             Z.Expr0_line = Z.inclp->line;
             strcpy(Z.Expr0_nam, Z.M_name);
@@ -2284,7 +2366,8 @@ static val_t M_Expr0(void)
         } else if (t->atr == M_ATR_SET) {
             n = t->argb;
         } else {
-            Filn_Error("PrgErr:#setƒ‰ƒxƒ‹\n");
+            //Filn_Error("PrgErr:#setãƒ©ãƒ™ãƒ«\n");
+            Filn_Error("PrgErr: #set label\n");
         }
         Z.M_ep = M_GetSym(Z.M_ep);
 
@@ -2294,8 +2377,10 @@ static val_t M_Expr0(void)
 
     } else if (Z.M_sym == '(') {
         n = M_ExprA();
-        if (Z.M_sym != ')')
-            Filn_Error("')'‚ª‚ ‚í‚È‚¢\n");
+        if (Z.M_sym != ')') {
+            //Filn_Error("')'ãŒã‚ã‚ãªã„\n");
+            Filn_Error("')' does not match\n");
+        }
         Z.M_ep = M_GetSym(Z.M_ep);
     } else if (Z.M_sym == '-') {
         n = -M_Expr0();
@@ -2318,7 +2403,7 @@ static val_t M_Expr0(void)
         n = 0;
         Z.M_ep = M_GetSym(Z.M_ep);
 
-    } else if (Z.M_sym == '$' && V.immMode == 4/*ƒ‚ƒgƒ[ƒ‰16i */) {
+    } else if (Z.M_sym == '$' && V.immMode == 4/*ãƒ¢ãƒˆãƒ­ãƒ¼ãƒ©16é€² */) {
         Z.M_ep = M_GetSym(Z.M_ep);
         if (Z.M_sym != '0')
             goto J1;
@@ -2327,7 +2412,8 @@ static val_t M_Expr0(void)
 
     } else {
   J1:
-        Filn_Error("‘z’è‚µ‚Ä‚¢‚È‚¢®/w’è‚¾\n");
+        //Filn_Error("æƒ³å®šã—ã¦ã„ãªã„å¼/æŒ‡å®šã \n");
+        Filn_Error("Unexpected expression / specification\n");
         return n;
     }
     //Z.M_ep = M_GetSym(Z.M_ep);
@@ -2346,14 +2432,16 @@ static val_t M_Expr1(void)
         } else if (Z.M_sym == '/') {
             n = M_Expr0();
             if (n == 0) {
-                Filn_Error("0‚ÅŠ„‚ë‚¤‚Æ‚µ‚½\n");
+                //Filn_Error("0ã§å‰²ã‚ã†ã¨ã—ãŸ\n");
+                Filn_Error("Divide by zero\n");
                 return 0;
             }
             m = m / n;
         } else if (Z.M_sym == '%') {
             n = M_Expr0();
             if (n == 0) {
-                Filn_Error("0‚ÅŠ„‚ë‚¤‚Æ‚µ‚½.\n");
+                //Filn_Error("0ã§å‰²ã‚ã†ã¨ã—ãŸ.\n");
+                Filn_Error("Divide by zero.\n");
                 return 0;
             }
             m = m % n;
@@ -2581,7 +2669,8 @@ static char const* M_ChkEol_nm_l(int sym, char const* s, char const* nm, int l)
   J1:
             if (Z.chkEol_name != Z.inclp->name && Z.chkEol_line != Z.inclp->line) {
                 //fprintf(V.errFp, "%s %d :\n", nm, l);
-                Filn_Error("s––‚Ü‚Å‚É•s—v‚È•¶š‚ª‚ ‚é... %s\n", s);
+                //Filn_Error("è¡Œæœ«ã¾ã§ã«ä¸è¦ãªæ–‡å­—ãŒã‚ã‚‹... %s\n", s);
+                Filn_Error("There are extra characters before end of line... %s\n", s);
             }
             Z.chkEol_name = Z.inclp->name;
             Z.chkEol_line = Z.inclp->line;
@@ -2650,46 +2739,58 @@ static char const* M_GetArg(char const* s, int cont, char const* tit)
     c = *(s = SkipSpc(s));
     if (c == ')') {
         s++;
-        if (k == 0)
-            Filn_Error("%c%s’è‹`‚ª‚¨‚©‚µ‚¢\n", V.mac_chr, tit);
+        if (k == 0) {
+            //Filn_Error("%c%så®šç¾©ãŒãŠã‹ã—ã„\n", V.mac_chr, tit);
+            Filn_Error("%c%s definition is invalid\n", V.mac_chr, tit);
+        }
         return s;
     }
     if (c == 0) {
-        if (k)
-            Filn_Error("%c%s’è‹`‚ª‚¨‚©‚µ‚¢\n", V.mac_chr, tit);
+        if (k) {
+            //Filn_Error("%c%så®šç¾©ãŒãŠã‹ã—ã„\n", V.mac_chr, tit);
+            Filn_Error("%c%s definition is invalid\n", V.mac_chr, tit);
+        }
         return s;
     }
-    /* ˆø‚«”‚Ìæ“¾ */
+    /* å¼•ãæ•°ã®å–å¾— */
     for (; ;) {
         s = M_GetSym(s);
         if (Z.M_argc >= FILN_ARG_NUM) {
-            Filn_Error("%c%s’è‹`‚Åˆø”‚ª‘½‚·‚¬‚Ü‚·\n", V.mac_chr, tit);
+            //Filn_Error("%c%så®šç¾©ã§å¼•æ•°ãŒå¤šã™ãã¾ã™\n", V.mac_chr, tit);
+            Filn_Error("%cToo many arguments in %s definition\n", V.mac_chr, tit);
             break;
         }
         if (Z.M_sym != 'A') {
-            Filn_Error("%c%s’è‹`‚Å‚Ìˆø”‚ª‚¨‚©‚µ‚¢\n", V.mac_chr, tit);
+            //Filn_Error("%c%så®šç¾©ã§ã®å¼•æ•°ãŒãŠã‹ã—ã„\n", V.mac_chr, tit);
+            Filn_Error("%cInvalid argument in %s definition\n", V.mac_chr, tit);
             break;
         }
         for (i = 0; i < Z.M_argc; i++) {
             if (strcmp(Z.M_argv[i], Z.M_name) == 0) {
-                Filn_Error("%c%sw’è‚Ìˆø”‚Å“¯‚¶–¼‘O‚ª‚ ‚é\n", V.mac_chr, tit);
+                //Filn_Error("%c%sæŒ‡å®šã®å¼•æ•°ã§åŒã˜åå‰ãŒã‚ã‚‹\n", V.mac_chr, tit);
+                Filn_Error("%cDuplicate argument name in %s definition\n", V.mac_chr, tit);
             }
         }
         Z.M_argv[Z.M_argc++] = strdupE(Z.M_name);
 
         s = M_GetSym(s);
         if (Z.M_sym == ')') {
-            if (k == 0)
-                Filn_Error("%c%s’è‹`‚ª‚¨‚©‚µ‚¢\n",V.mac_chr,tit);
+            if (k == 0) {
+                //Filn_Error("%c%så®šç¾©ãŒãŠã‹ã—ã„\n",V.mac_chr,tit);
+                Filn_Error("%c%s definition is invalid\n",V.mac_chr,tit);
+            }
             break;
         }
         if (Z.M_sym == 0) {
-            if (k)
-                Filn_Error("%c%s’è‹`‚ª‚¨‚©‚µ‚¢\n",V.mac_chr,tit);
+            if (k) {
+                //Filn_Error("%c%så®šç¾©ãŒãŠã‹ã—ã„\n",V.mac_chr,tit);
+                Filn_Error("%c%s definition is invalid\n",V.mac_chr,tit);
+            }
             break;
         }
         if (Z.M_sym != ',') {
-            Filn_Error("%c%s’è‹`‚Ìˆø”w’è‚ª‚¨‚©‚µ‚¢\n",V.mac_chr,tit);
+            //Filn_Error("%c%så®šç¾©ã®å¼•æ•°æŒ‡å®šãŒãŠã‹ã—ã„\n",V.mac_chr,tit);
+            Filn_Error("%cInvalid argument list in %s definition\n",V.mac_chr,tit);
             break;
         }
     }
@@ -2697,7 +2798,7 @@ static char const* M_GetArg(char const* s, int cont, char const* tit)
 }
 
 
-/** #define ’è‹`s‚Ìˆ—
+/** #define å®šç¾©è¡Œã®å‡¦ç†
  */
 static int M_Define(char const* s)
 {
@@ -2707,16 +2808,17 @@ static int M_Define(char const* s)
     int         argc,atr;
     int         c;
 
-    /* –¼‘O‚ğ“¾‚é */
+    /* åå‰ã‚’å¾—ã‚‹ */
     s = M_GetSym(s);
     if (Z.M_sym != 'A') {
-        Filn_Error("%cdefine’è‹`‚ª‚¨‚©‚µ‚¢\n",V.mac_chr);
+        //Filn_Error("%cdefineå®šç¾©ãŒãŠã‹ã—ã„\n",V.mac_chr);
+        Filn_Error("%cdefine definition is invalid\n",V.mac_chr);
         return 0;
     }
     strcpy(name, Z.M_name);
     argc = 0;
     argv = NULL;
-    if (*s == '(') {    /* ŠÖ”Œ^‚Ìƒ}ƒNƒ‚©H */
+    if (*s == '(') {    /* é–¢æ•°å‹ã®ãƒã‚¯ãƒ­ã‹ï¼Ÿ */
         s = M_GetArg(s,0,"define");
         //argc = Z.M_argc;
      #if 1
@@ -2734,7 +2836,7 @@ static int M_Define(char const* s)
         atr = M_ATR_DEF;
     }
     p = s; TOEOS(p);
- #if 1  // char const* ‰» ‚Å allocate•û–@•ÏX.
+ #if 1  // char const* åŒ– ã§ allocateæ–¹æ³•å¤‰æ›´.
     MTREE_Add(name, atr, argc, argc, argv, strndupE(s, p - s + 1), 0);
  #else
     c = *p; *(char*)p = 0;
@@ -2749,17 +2851,18 @@ static int M_Define(char const* s)
 #if 0
 static int M_Array(char *s)
 {
-    /* #array ’è‹`s‚Ìˆ— */
+    /* #array å®šç¾©è¡Œã®å‡¦ç† */
   #if 0
     char name[FILN_NAME_SIZE+2];
     char **argv, *p;
     int  argc,atr;
     int  c;
 
-    /* –¼‘O‚ğ“¾‚é */
+    /* åå‰ã‚’å¾—ã‚‹ */
     s = M_GetSym(s);
     if (Z.M_sym != 'A') {
-        Filn_Error("%carray’è‹`‚ª‚¨‚©‚µ‚¢\n",V.mac_chr);
+        //Filn_Error("%carrayå®šç¾©ãŒãŠã‹ã—ã„\n",V.mac_chr);
+        Filn_Error("%carray definition is invalid\n",V.mac_chr);
         return 0;
     }
     strcpy(name, Z.M_name);
@@ -2803,13 +2906,13 @@ static int M_Macro(char const* s)
 
     /* */
     fname = Z.inclp->name;
-    line  = Z.inclp->line-1;                        /* -1 ‚Í\n_S\xFF_\n ‚ÌÅ‰‚Ì\n‚ğ’Ç‰Á‚µ‚½‚½‚ß‚Ì’²® */
+    line  = Z.inclp->line-1;                        /* -1 ã¯\n_S\xFF_\n ã®æœ€åˆã®\nã‚’è¿½åŠ ã—ãŸãŸã‚ã®èª¿æ•´ */
 
     argb   = 0;
     argc   = 0;
     argv   = NULL;
     macflg = 0;
-    /* –¼‘O‚ğ“¾‚é */
+    /* åå‰ã‚’å¾—ã‚‹ */
     s = M_GetSym(s);
     if (Z.M_sym == 'A') {
         strcpy(name, Z.M_name);
@@ -2817,7 +2920,7 @@ static int M_Macro(char const* s)
         s = M_GetArg(s,0, "macro");
         argb = Z.M_argc;
         M_ChkEol(0,s);
-    } else if (Z.M_sym == 0 || Z.M_sym == '\n' || Z.M_sym == M_C('/','/')) {    /* –¼‘O–³‚µƒ}ƒNƒ */
+    } else if (Z.M_sym == 0 || Z.M_sym == '\n' || Z.M_sym == M_C('/','/')) {    /* åå‰ç„¡ã—ãƒã‚¯ãƒ­ */
         macflg = -1;
         strcpy(name, "_macro\xff_");
      #if 1
@@ -2829,18 +2932,20 @@ static int M_Macro(char const* s)
         /*s = SkipSpc(s);*/
         M_ChkEol(Z.M_sym,s);
     } else {
-        Filn_Error("%c%s ’è‹`‚ª‚¨‚©‚µ‚¢\n",V.mac_chr, "macro");
+        //Filn_Error("%c%s å®šç¾©ãŒãŠã‹ã—ã„\n",V.mac_chr, "macro");
+        Filn_Error("%c%s definition is invalid\n",V.mac_chr, "macro");
         return 0;
     }
 
     InitStMbuf();
-    sprintf(wk,"\n%c_S\xFF_\n",V.mac_chr);      /* exitm ˆ——p‚Éƒ}ƒNƒ”ÍˆÍ‚ÌŠJnˆÊ’u‚ğ–„‚ß‚±‚Ş */
+    sprintf(wk,"\n%c_S\xFF_\n",V.mac_chr);      /* exitm å‡¦ç†ç”¨ã«ãƒã‚¯ãƒ­ç¯„å›²ã®é–‹å§‹ä½ç½®ã‚’åŸ‹ã‚ã“ã‚€ */
     StMbuf(wk);
 
     for (; ;) {
         s = Filn_GetLine();
         if (s == NULL) {
-            Filn_Exit("%c%s’è‹`“r’†‚Åƒtƒ@ƒCƒ‹‚ªI—¹‚µ‚Ä‚¢‚é\n",V.mac_chr,"macro");
+            //Filn_Exit("%c%så®šç¾©é€”ä¸­ã§ãƒ•ã‚¡ã‚¤ãƒ«ãŒçµ‚äº†ã—ã¦ã„ã‚‹\n",V.mac_chr,"macro");
+            Filn_Exit("%c%s definition reached EOF in the middle\n",V.mac_chr,"macro");
         }
         s = SkipSpc(s);
         if (M_ChkMchr(s)) {
@@ -2848,14 +2953,15 @@ static int M_Macro(char const* s)
             s = M_GetSym(s+1);
             o = M_OdrSearch(Z.M_name);
             if (Z.M_sym == 'A') {
-                if (o == M_LOCAL) {/*#local’è‹`*/
+                if (o == M_LOCAL) {/*#localå®šç¾©*/
                     s = M_GetArg(s,1,"local");
                     M_ChkEol(0,s);
                     continue;
                 } else if (o == M_ENDMACRO) {
                     break;
                 } else if (o == M_UNDEF || o == M_MACRO) {
-                    Filn_Error("%c%s’è‹`“à‚Å‚Í %c%s ‚Å‚«‚Ü‚¹‚ñ\n",V.mac_chr,"macro",V.mac_chr,Z.M_name);
+                    //Filn_Error("%c%så®šç¾©å†…ã§ã¯ %c%s ã§ãã¾ã›ã‚“\n",V.mac_chr,"macro",V.mac_chr,Z.M_name);
+                    Filn_Error("%cCannot use %c%s inside %c%s definition\n",V.mac_chr,"macro",V.mac_chr,Z.M_name);
                     continue;
                 }
             }
@@ -2863,7 +2969,7 @@ static int M_Macro(char const* s)
         StMbuf(Z.linbuf);
         StMbuf("\n");
     }
-    sprintf(wk,"\n%c_E\xFF_\n",V.mac_chr);  /* exitm ˆ——p‚Éƒ}ƒNƒ”ÍˆÍ‚ÌI—¹ˆÊ’u‚ğ–„‚ß‚±‚Ş */
+    sprintf(wk,"\n%c_E\xFF_\n",V.mac_chr);  /* exitm å‡¦ç†ç”¨ã«ãƒã‚¯ãƒ­ç¯„å›²ã®çµ‚äº†ä½ç½®ã‚’åŸ‹ã‚ã“ã‚€ */
     StMbuf(wk);
 
  #if 1
@@ -2898,24 +3004,15 @@ static char const* M_Undef(char const* name)
     p = MTREE_Search(Z.M_name);
     if (p) {
         SAFE_FREE(p->buf);
-      #if 1
         M_FreeArg(&p->argc, &p->argv);
-      #else
-        if (p->argv) {
-            int         i;
-            for (i = 0; i < p->argc; i++)
-                SAFE_FREE(p->argv[i]);
-            SAFE_FREE(p->argv);
-        }
-      #endif
         p->atr = M_ATR_0;
     }
     return s;
 }
 
 
-/** #rept ` #endrept ‚ğƒoƒbƒtƒ@‚Ö’™‚¦‚é
- * ÀÛ‚Ì“WŠJ‚Í M_Macc “à‚Ås‚¤
+/** #rept ï½ #endrept ã‚’ãƒãƒƒãƒ•ã‚¡ã¸è²¯ãˆã‚‹
+ * å®Ÿéš›ã®å±•é–‹ã¯ M_Macc å†…ã§è¡Œã†
  */
 static int M_Rept(char *s)
 {
@@ -2924,20 +3021,23 @@ static int M_Rept(char *s)
 
     /*printf("<rept>\n");*/
     /*printf("%s\n",s);*/
-    StMbuf(s);          /* #repts©‘Ì‚ğƒoƒbƒtƒ@‚Ö */
+    StMbuf(s);          /* #reptè¡Œè‡ªä½“ã‚’ãƒãƒƒãƒ•ã‚¡ã¸ */
     StMbuf("\n");
     endflg = r = 0;
     while (endflg == 0) {
         b = s = Filn_GetLine();
-        if (s == NULL)
-            Filn_Exit("%crept ’è‹`“r’†‚Åƒtƒ@ƒCƒ‹‚ªI—¹‚µ‚Ä‚¢‚é\n",V.mac_chr);
+        if (s == NULL) {
+            //Filn_Exit("%crept å®šç¾©é€”ä¸­ã§ãƒ•ã‚¡ã‚¤ãƒ«ãŒçµ‚äº†ã—ã¦ã„ã‚‹\n",V.mac_chr);
+            Filn_Exit("%crept definition reached EOF in the middle\n",V.mac_chr);
+        }
         s = SkipSpc(s);
         if (M_ChkMchr(s)) {
             /*s =*/ M_GetSym(s+1);
             if (Z.M_sym == 'A') {
                 o = M_OdrSearch(Z.M_name);
                 if (o == M_MACRO || o == M_LOCAL || o == M_ENDMACRO) {
-                    Filn_Error("%crept ’†‚Å‚Í %c%s ‚Å‚«‚Ü‚¹‚ñ\n",V.mac_chr,V.mac_chr,Z.M_name);
+                    //Filn_Error("%crept ä¸­ã§ã¯ %c%s ã§ãã¾ã›ã‚“\n",V.mac_chr,V.mac_chr,Z.M_name);
+                    Filn_Error("%crept cannot use %c%s inside\n",V.mac_chr,V.mac_chr,Z.M_name);
                     continue;
                 } else if (o == M_REPT) {
                     r++;
@@ -2958,8 +3058,8 @@ static int M_Rept(char *s)
 }
 
 
-/** #ipr ` #endipr ‚ğƒoƒbƒtƒ@‚Ö’™‚¦‚é
- * ÀÛ‚Ì“WŠJ‚Í M_Macc “à‚Ås‚¤
+/** #ipr ï½ #endipr ã‚’ãƒãƒƒãƒ•ã‚¡ã¸è²¯ãˆã‚‹
+ * å®Ÿéš›ã®å±•é–‹ã¯ M_Macc å†…ã§è¡Œã†
  */
 static int M_Ipr(char const* s)
 {
@@ -2967,12 +3067,14 @@ static int M_Ipr(char const* s)
     int         r;
     char const* b;
 
-    StMbuf(s);          /* #iprs©‘Ì‚ğƒoƒbƒtƒ@‚Ö */
+    StMbuf(s);          /* #iprè¡Œè‡ªä½“ã‚’ãƒãƒƒãƒ•ã‚¡ã¸ */
     StMbuf("\n");
     endflg = r = 0;
     while (endflg == 0) {
-        if ((b = s = Filn_GetLine()) == NULL)
-            Filn_Exit("%cipr ’è‹`“r’†‚Åƒtƒ@ƒCƒ‹‚ªI—¹‚µ‚Ä‚¢‚é\n",V.mac_chr);
+        if ((b = s = Filn_GetLine()) == NULL) {
+            //Filn_Exit("%cipr å®šç¾©é€”ä¸­ã§ãƒ•ã‚¡ã‚¤ãƒ«ãŒçµ‚äº†ã—ã¦ã„ã‚‹\n",V.mac_chr);
+            Filn_Exit("%cipr definition reached EOF in the middle\n",V.mac_chr);
+        }
         s = SkipSpc(s);
         if (M_ChkMchr(s)) {
             /*s =*/M_GetSym(s+1);
@@ -2980,7 +3082,8 @@ static int M_Ipr(char const* s)
                 int o;
                 o = M_OdrSearch(Z.M_name);
                 if (o == M_MACRO || o == M_LOCAL || o == M_ENDMACRO) {
-                    Filn_Error("%cipr‚Å‚Í %c%s ‚Å‚«‚Ü‚¹‚ñ\n",V.mac_chr,V.mac_chr,Z.M_name);
+                    //Filn_Error("%ciprã§ã¯ %c%s ã§ãã¾ã›ã‚“\n",V.mac_chr,V.mac_chr,Z.M_name);
+                    Filn_Error("%cipr cannot use %c%s\n",V.mac_chr,V.mac_chr,Z.M_name);
                     continue;
                 } else if (o == M_IPR) {
                     r++;
@@ -3036,13 +3139,15 @@ static int M_Set(char const* s)
 
     s = M_GetSym(s);
     if (Z.M_sym != 'A') {
-        Filn_Error("%cset’è‹`‚ª‚¨‚©‚µ‚¢\n",V.mac_chr);
+        //Filn_Error("%csetå®šç¾©ãŒãŠã‹ã—ã„\n",V.mac_chr);
+        Filn_Error("%cset definition is invalid\n",V.mac_chr);
         return 0;
     }
     strcpy(name, Z.M_name);
     s = M_GetSym(s);
     if (Z.M_sym != '=') {
-        Filn_Error("%cset’è‹`‚ª‚¨‚©‚µ‚¢\n",V.mac_chr);
+        //Filn_Error("%csetå®šç¾©ãŒãŠã‹ã—ã„\n",V.mac_chr);
+        Filn_Error("%cset definition is invalid\n",V.mac_chr);
         return 0;
     }
     n = M_Expr(s);
@@ -3054,7 +3159,7 @@ static int M_Set(char const* s)
 #endif
 
 
-/** #print s•\¦
+/** #print è¡Œè¡¨ç¤º
  */
 static int M_Print(char const* s)
 {
@@ -3074,8 +3179,8 @@ static int M_Print(char const* s)
             p = Z.M_str+1;
             while (*p) {
                 c = *p;
-                if (FILN_MBC_IS_LEAD(c)) {
-                    unsigned l = mbs_len1(p);
+                if (MBC_IS_LEAD(c)) {
+                    unsigned l = MBS_LEN1(p);
                     unsigned j;
                     for (j = 0; j < l; ++j) {
                         c = *p++;
@@ -3119,6 +3224,8 @@ static void MM_Macc_MIpr(char const* name, char const** s0, int argc, char const
 static void MM_Macc_MSet(char const* name, char const* s);
 
 
+/** Initialize macro preprocessor environment, add reserved macros
+ */
 static void MM_Init(void)
 {
     Z.MM_ptr = NULL;
@@ -3130,15 +3237,22 @@ static void MM_Init(void)
 }
 
 #if 0
+/** (Unused) Report error during macro/rept definition
+ */
 static void MM_MaccErr(char *fname, uint32_t line)
 {
     if (fname)
-        fprintf(V.errFp, "%-13s %5lu : %cmacro,%crept“™‚Ì’è‹`‚Ì’†‚Å\n", V.mac_chr, fname, V.mac_chr, line);
+        fprintf(V.errFp, "%-13s %5lu : %cmacro,%creptç­‰ã®å®šç¾©ã®ä¸­ã§\n", V.mac_chr, fname, V.mac_chr, line);
 }
 #endif
 
 
-/**
+/** Main macro expansion function.
+ *  s: Input string for macro expansion
+ *  exmacF: Expression mode flag (ex: #ex support)
+ *  m: Macro information struct
+ *  v: Macro argument values
+ *  dbms: For debug message string
  */
 static void MM_Macc(char const* s, int exmacF, MTREE_T* m, char** v /*, char *fname, uint32_t line*/, char const* dbms)
 {
@@ -3149,7 +3263,7 @@ static void MM_Macc(char const* s, int exmacF, MTREE_T* m, char** v /*, char *fn
     int         expr_r = 0;
     int         gyoto  = 0;
     char        name[FILN_NAME_SIZE+2];
-    int         sh; /* #ƒ}ƒNƒ–¼‚É‚æ‚é"ƒ}ƒNƒ–¼"“WŠJ‚Ìƒtƒ‰ƒO */
+    int         sh; /* #ãƒã‚¯ãƒ­åã«ã‚ˆã‚‹"ãƒã‚¯ãƒ­å"å±•é–‹ã®ãƒ•ãƒ©ã‚° */
     char const* p;
     char*       p2;
     char const* q;
@@ -3166,10 +3280,11 @@ static void MM_Macc(char const* s, int exmacF, MTREE_T* m, char** v /*, char *fn
   #if 0
     DB {
         int z;
-        printf("ƒ}ƒNƒ%s“WŠJ(nest %d)  [%s]\n", m?m->name:"", Z.MM_nest, dbms);
+        //printf("ãƒã‚¯ãƒ­%så±•é–‹(nest %d)  [%s]\n", m?m->name:"", Z.MM_nest, dbms);
+        printf("Expanding macro %s (nest %d)  [%s]\n", m?m->name:"", Z.MM_nest, dbms);
         if (m && v && v[0]) {
             for (z = 0; z < m->argc; z++) {
-                printf("  ˆø”[%d:%s] = %s\n", z, m->argv[z], v[z]);
+                printf("  arg[%d:%s] = %s\n", z, m->argv[z], v[z]);
             }
         }
         printf("%s\n", s);
@@ -3182,8 +3297,8 @@ static void MM_Macc(char const* s, int exmacF, MTREE_T* m, char** v /*, char *fn
     for (;;) {
     LOOP:
         //p = Z.M_mptr;
-        if (ISSPACE(*s)) {  /* ‹ó”’‚ğ”²‚«‚·‚¬‚È‚¢‚æ‚¤‚É‚·‚é‚½‚ß‚Ìˆ— */
-            if (V.opt_delspc) {     /* 0ˆÈŠO‚È‚ç‚Î‹ó”’‚Ìˆ³k‚ğ‹–‚· */
+        if (ISSPACE(*s)) {  /* ç©ºç™½ã‚’æŠœãã™ããªã„ã‚ˆã†ã«ã™ã‚‹ãŸã‚ã®å‡¦ç† */
+            if (V.opt_delspc) {     /* 0ä»¥å¤–ãªã‚‰ã°ç©ºç™½ã®åœ§ç¸®ã‚’è¨±ã™ */
                 StMbuf(" ");
             } else {
                 s = M_GetSym0(s);
@@ -3195,22 +3310,23 @@ static void MM_Macc(char const* s, int exmacF, MTREE_T* m, char** v /*, char *fn
       LOP2:
         sh = 0;
         gyoto++;
-        if (Z.M_sym == 0 || Z.M_sym == '\n') {  /* s––A‚Ü‚½‚ÍAƒ}ƒNƒ‚ÌI‚í‚è */
+        if (Z.M_sym == 0 || Z.M_sym == '\n') {  /* è¡Œæœ«ã€ã¾ãŸã¯ã€ãƒã‚¯ãƒ­ã®çµ‚ã‚ã‚Š */
             gyoto = 0;
           #if 0
             //if (Z.MM_nest > 1)
             //  Filn_PutsSrcLine();
           #endif
             k = Z.M_sym;
-            if (msetp) {    /* ÀÛ‚Ì#sets‚Ìˆ— */
+            if (msetp) {    /* å®Ÿéš›ã®#setè¡Œã®å‡¦ç† */
                 MM_Macc_MSet(name, msetp);
                 Z.M_mptr = msetp;
                 *Z.M_mptr = 0;
             }
-            if (mreptp) {       /* ÀÛ‚Ì#rept`#endrept‚Ìˆ— */
-                if (k == 0) {   /* ‘Î‰‚·‚é#endrept‚ª–³‚¢‚Ì‚ª–¾‚ç‚© */
+            if (mreptp) {       /* å®Ÿéš›ã®#reptï½#endreptã®å‡¦ç† */
+                if (k == 0) {   /* å¯¾å¿œã™ã‚‹#endreptãŒç„¡ã„ã®ãŒæ˜ã‚‰ã‹ */
                     /*MM_MaccErr(fname, line);*/
-                    Filn_Error("‘Î‰‚·‚é %cendrept ‚ª‚È‚¢\n",V.mac_chr);
+                    //Filn_Error("å¯¾å¿œã™ã‚‹ %cendrept ãŒãªã„\n",V.mac_chr);
+                    Filn_Error("No matching %cendrept found\n",V.mac_chr);
                     *mreptp = 0;
                 } else {
                     // --s;
@@ -3219,7 +3335,8 @@ static void MM_Macc(char const* s, int exmacF, MTREE_T* m, char** v /*, char *fn
             }
             if (expr_r) {
                 /*MM_MaccErr(fname, line);*/
-                Filn_Error("(®)‚ÌŒã‚ë‚Ì ) ‚ª‚È‚¢\n");
+                //Filn_Error("(å¼)ã®å¾Œã‚ã® ) ãŒãªã„\n");
+                Filn_Error("Unmatched ')' after (expression)\n");
             }
             exprFlg = exmacF;
             exprp = mreptp = msetp = NULL;
@@ -3229,12 +3346,12 @@ static void MM_Macc(char const* s, int exmacF, MTREE_T* m, char** v /*, char *fn
             }
             StMbuf("\n");
 
-        } else if (Z.M_sym == '0') {            /* ’è” */
+        } else if (Z.M_sym == '0') {            /* å®šæ•° */
             if (V.immMode)
                 StMbuf(M_ImmStr(tmp, Z.M_val, 0));
             else
                 StMbuf(Z.M_str);
-        } else if (Z.M_sym == '"' && V.opt_wq_mode) {           /* "•¶š—ñ" */
+        } else if (Z.M_sym == '"' && V.opt_wq_mode) {           /* "æ–‡å­—åˆ—" */
             StMbuf(Z.M_str);
         } else if (Z.M_sym == M_C('/','/')) {
             if (msetp || mreptp)
@@ -3243,11 +3360,11 @@ static void MM_Macc(char const* s, int exmacF, MTREE_T* m, char** v /*, char *fn
                 StMbuf("//");
             goto LOOP;
 
-        } else if (exprFlg && Z.M_sym == M_C(V.mac_chr2, V.mac_chr2)) { /* ## ‚É‚æ‚é•¶š—ñ˜AŒ‹ */
+        } else if (exprFlg && Z.M_sym == M_C(V.mac_chr2, V.mac_chr2)) { /* ## ã«ã‚ˆã‚‹æ–‡å­—åˆ—é€£çµ */
             ;
-        } else if (Z.M_sym == V.mac_chr && !ISSPACE(*s)) {          /*====== #–½—ß ======*/
+        } else if (Z.M_sym == V.mac_chr && !ISSPACE(*s)) {          /*====== #å‘½ä»¤ ======*/
             s = M_GetSym(s);
-            if (exprFlg && V.mac_chr == V.mac_chr2 && Z.M_sym == '(') { /*-- #(®) --*/
+            if (exprFlg && V.mac_chr == V.mac_chr2 && Z.M_sym == '(') { /*-- #(å¼) --*/
                 goto JJJ_EXPR;
             }
             if (exprFlg && V.mac_chr == V.mac_chr2 && Z.M_sym == '&') {
@@ -3259,30 +3376,31 @@ static void MM_Macc(char const* s, int exmacF, MTREE_T* m, char** v /*, char *fn
                 goto LOP2;
             }
             k = M_OdrSearch(Z.M_name);
-            if (k < 0) {                                            /* #–½—ß‚Å‚È‚©‚Á‚½ */
+            if (k < 0) {                                            /* #å‘½ä»¤ã§ãªã‹ã£ãŸ */
                 if (V.mac_chr == V.mac_chr2)
                     goto JJJJ;
                 StMbuf(Z.mac_chrs/*"#"*/);
                 goto JJJ_LBL;
             }
-            if (gyoto == 1) {   /* s“ª‚Ì‚Ì‚İ—LŒø‚È–½—ß */
+            if (gyoto == 1) {   /* è¡Œé ­ã®æ™‚ã®ã¿æœ‰åŠ¹ãªå‘½ä»¤ */
         /* GYOTO_MAC: */
                 if (k == M_DEFINE) {                                /*-- #define --*/
                     p = s;
                     TOEOS(s);
                   #if 0
-                    if (*s == '\n') /* ƒ}ƒNƒ’†‚Å‚Ì‰üs‘Îô */
+                    if (*s == '\n') /* ãƒã‚¯ãƒ­ä¸­ã§ã®æ”¹è¡Œå¯¾ç­– */
                         *s++ = 0;
                   #endif
                     M_Define(p);
                     goto LOOP;
 
                 } else if (k == M_UNDEF) {                      /*-- #undef --*/
-                    if (Z.MM_cnt) { /* Œ»İ“WŠJ’†‚Ìƒ}ƒNƒ–¼‚Æ“¯‚¶‚È‚ç‚ÎA#undef‚Å‚«‚È‚¢ */
+                    if (Z.MM_cnt) { /* ç¾åœ¨å±•é–‹ä¸­ã®ãƒã‚¯ãƒ­åã¨åŒã˜ãªã‚‰ã°ã€#undefã§ããªã„ */
                         for (i = 0; i < Z.MM_cnt; i++) {
                             if (strcmp(Z.M_name, Z.MM_name[i]) == 0) {
                                 /*MM_MaccErr(fname, line);*/
-                                Filn_Error("ƒ}ƒNƒ %s ‚Í“WŠJ’†‚È‚Ì‚Å #undef ‚Å‚«‚Ü‚¹‚ñ\n", Z.M_name);
+                                //Filn_Error("ãƒã‚¯ãƒ­ %s ã¯å±•é–‹ä¸­ãªã®ã§ #undef ã§ãã¾ã›ã‚“\n", Z.M_name);
+                                Filn_Error("Macro %s is being expanded, cannot #undef\n", Z.M_name);
                                 TOEOS(s);
                                 goto LOOP;
                             }
@@ -3293,19 +3411,21 @@ static void MM_Macc(char const* s, int exmacF, MTREE_T* m, char** v /*, char *fn
                     goto LOOP;
 
                 } else if (k == M_SET) {                        /*-- #set --*/
-                    /* #set ƒ‰ƒxƒ‹=® ‚Ì®‚Ì‚½‚ß‚És––‚Ü‚Åƒ}ƒNƒ“WŠJ‚µAs––‚ÅÀÛ‚Ìˆ—‚ğ‚·‚é */
+                    /* #set ãƒ©ãƒ™ãƒ«=å¼ ã®å¼ã®ãŸã‚ã«è¡Œæœ«ã¾ã§ãƒã‚¯ãƒ­å±•é–‹ã—ã€è¡Œæœ«ã§å®Ÿéš›ã®å‡¦ç†ã‚’ã™ã‚‹ */
                     if (msetp || mreptp || exprp) {
                         /*MM_MaccErr(fname, line);*/
-                        Filn_Error("%cset ’è‹`‚ª‚¨‚©‚µ‚¢\n",V.mac_chr);
+                        //Filn_Error("%cset å®šç¾©ãŒãŠã‹ã—ã„\n",V.mac_chr);
+                        Filn_Error("%cset definition error\n",V.mac_chr);
                         TOEOS(s);
                         goto LOOP;
                     }
-                    exprFlg = 1;    /* defined()—LŒø */
+                    exprFlg = 1;    /* defined()æœ‰åŠ¹ */
                     msetp = NULL;
                     s = M_GetSym(s);
                     if (Z.M_sym != 'A') {
                         /*MM_MaccErr(fname, line);*/
-                        Filn_Error("%cset’è‹`‚ª‚¨‚©‚µ‚¢.\n",V.mac_chr);
+                        //Filn_Error("%csetå®šç¾©ãŒãŠã‹ã—ã„.\n",V.mac_chr);
+                        Filn_Error("%cset definition error.\n",V.mac_chr);
                         TOEOS(s);
                         goto LOOP;
                     }
@@ -3313,7 +3433,8 @@ static void MM_Macc(char const* s, int exmacF, MTREE_T* m, char** v /*, char *fn
                     s = M_GetSym(s);
                     if (Z.M_sym != '=') {
                         /*MM_MaccErr(fname, line);*/
-                        Filn_Error("%cset=’è‹`‚ª‚¨‚©‚µ‚¢\n",V.mac_chr);
+                        //Filn_Error("%cset=å®šç¾©ãŒãŠã‹ã—ã„\n",V.mac_chr);
+                        Filn_Error("%cset= definition error\n",V.mac_chr);
                         TOEOS(s);
                         goto LOOP;
                     }
@@ -3321,7 +3442,7 @@ static void MM_Macc(char const* s, int exmacF, MTREE_T* m, char** v /*, char *fn
                     goto LOOP;
 
                 } else if (k == M_IFDEF || k == M_IFNDEF) {     /*-- #ifdef --*/
-                    /* æ‚èŠ¸‚¦‚¸A’è‹`‚³‚ê‚Ä‚¢‚é‚©‚Ç‚¤‚©‚¾‚¯’²‚×, #if ‚É•ÏŠ· */
+                    /* å–ã‚Šæ•¢ãˆãšã€å®šç¾©ã•ã‚Œã¦ã„ã‚‹ã‹ã©ã†ã‹ã ã‘èª¿ã¹, #if ã«å¤‰æ› */
                     StMbuf("#if ");
                     s = M_GetSym(s);
                     c = 0;
@@ -3333,14 +3454,15 @@ static void MM_Macc(char const* s, int exmacF, MTREE_T* m, char** v /*, char *fn
                     goto LOOP;
 
                 } else if (k == M_REPT) {                       /*-- #rept --*/
-                    /* #rept ƒ‰ƒxƒ‹=® ‚Ì®‚Ì‚½‚ß‚És––‚Ü‚Åƒ}ƒNƒ“WŠJ‚µAs––‚ÅÀÛ‚Ìˆ—‚ğ‚·‚é */
+                    /* #rept ãƒ©ãƒ™ãƒ«=å¼ ã®å¼ã®ãŸã‚ã«è¡Œæœ«ã¾ã§ãƒã‚¯ãƒ­å±•é–‹ã—ã€è¡Œæœ«ã§å®Ÿéš›ã®å‡¦ç†ã‚’ã™ã‚‹ */
                     if (mreptp || msetp || exprp) {
                         /*MM_MaccErr(fname, line);*/
-                        Filn_Error("%crept ’è‹`‚ª‚¨‚©‚µ‚¢\n",V.mac_chr);
+                        //Filn_Error("%crept å®šç¾©ãŒãŠã‹ã—ã„\n",V.mac_chr);
+                        Filn_Error("%crept definition error\n",V.mac_chr);
                         TOEOS(s);
                         goto LOOP;
                     }
-                    exprFlg = 1;    /* defined()—LŒø */
+                    exprFlg = 1;    /* defined()æœ‰åŠ¹ */
                     name[0] = 0;
                     mreptp = Z.M_mptr;
                     p = s;
@@ -3361,18 +3483,20 @@ static void MM_Macc(char const* s, int exmacF, MTREE_T* m, char** v /*, char *fn
                     goto LOOP;
 
                 } else if (k == M_IPR) {                    /*-- #ipr --*/
-                    /* #ipr ƒ‰ƒxƒ‹=ˆø”1,ˆø”2, ... */
+                    /* #ipr ãƒ©ãƒ™ãƒ«=å¼•æ•°1,å¼•æ•°2, ... */
                     if (msetp || mreptp) {
                         /*MM_MaccErr(fname, line);*/
-                        Filn_Error("%cipr ’è‹`‚ª‚¨‚©‚µ‚¢\n",V.mac_chr);
+                        //Filn_Error("%cipr å®šç¾©ãŒãŠã‹ã—ã„\n",V.mac_chr);
+                        Filn_Error("%cipr definition error\n",V.mac_chr);
                         TOEOS(s);
                         goto LOOP;
                     }
-                    exprFlg = 1;    /* defined()—LŒø */
+                    exprFlg = 1;    /* defined()æœ‰åŠ¹ */
                     s = M_GetSym(s);
                     if (Z.M_sym != 'A') {
                         /*MM_MaccErr(fname, line);*/
-                        Filn_Error("%cipr ’è‹`‚ª‚¨‚©‚µ‚¢.\n",V.mac_chr);
+                        //Filn_Error("%cipr å®šç¾©ãŒãŠã‹ã—ã„.\n",V.mac_chr);
+                        Filn_Error("%cipr definition error.\n",V.mac_chr);
                         TOEOS(s);
                         goto LOOP;
                     }
@@ -3380,12 +3504,13 @@ static void MM_Macc(char const* s, int exmacF, MTREE_T* m, char** v /*, char *fn
                     s = M_GetSym(s);
                     if (Z.M_sym != '=') {
                         /*MM_MaccErr(fname, line);*/
-                        Filn_Error("%cipr’è‹`‚ª‚¨‚©‚µ‚¢.\n",V.mac_chr);
+                        //Filn_Error("%ciprå®šç¾©ãŒãŠã‹ã—ã„.\n",V.mac_chr);
+                        Filn_Error("%cipr definition error.\n",V.mac_chr);
                         TOEOS(s);
                         goto LOOP;
                     }
 
-                    /* ipr ‚Ìˆø”‚ğæ“¾ */
+                    /* ipr ã®å¼•æ•°ã‚’å–å¾— */
                     a = callocE(sizeof(char*), FILN_ARG_NUM);
                     c = 0;
                     do {
@@ -3413,7 +3538,8 @@ static void MM_Macc(char const* s, int exmacF, MTREE_T* m, char** v /*, char *fn
                         } while (Z.M_sym != 0 && Z.M_sym != '\n' && Z.M_sym != ',');
                         if (c == FILN_ARG_NUM) {
                             /*MM_MaccErr(fname, line);*/
-                            Filn_Error("%cipr ‚Ìˆø”‚ª‘½‚·‚¬‚é(%dŒÂ‚Ü‚Å)\n",V.mac_chr,FILN_ARG_NUM);
+                            //Filn_Error("%cipr ã®å¼•æ•°ãŒå¤šã™ãã‚‹(%då€‹ã¾ã§)\n",V.mac_chr,FILN_ARG_NUM);
+                            Filn_Error("%cipr has too many arguments (max %d)\n",V.mac_chr,FILN_ARG_NUM);
                         }
                         if (c < FILN_ARG_NUM) {
                             a[c] = mallocE(q-p+1);
@@ -3421,15 +3547,9 @@ static void MM_Macc(char const* s, int exmacF, MTREE_T* m, char** v /*, char *fn
                             c++;
                         }
                     } while(Z.M_sym == ',');
-                    /* ƒ‹[ƒv“WŠJ */
-                    MM_Macc_MIpr(name, &s, c, a /*, fname, line*/);
-                 #if 1
+                    /* ãƒ«ãƒ¼ãƒ—å±•é–‹ */
+                    MM_Macc_MIpr(name, &s, c, (char const* const*)a /*, fname, line*/);
                     M_FreeArg(&c, &a);
-                 #else
-                    for (i = 0; i < c; i++)
-                        SAFE_FREE(a[i]);
-                    SAFE_FREE(a);
-                 #endif
                     goto LOOP;
                 } else if (k == M_ARRAY) {
                     //p = s;
@@ -3455,7 +3575,7 @@ static void MM_Macc(char const* s, int exmacF, MTREE_T* m, char** v /*, char *fn
                         || k == M_PRINT
                     )
                   #endif
-                    exprFlg = 1;    /* defined()—LŒø */
+                    exprFlg = 1;    /* defined()æœ‰åŠ¹ */
                     StMbuf(Z.mac_chrs/*"#"*/);
                     StMbuf(Z.M_name);
                     goto LOOP;
@@ -3468,16 +3588,17 @@ static void MM_Macc(char const* s, int exmacF, MTREE_T* m, char** v /*, char *fn
                 goto JJJ_LBL;
             }
 
-        } else if (Z.M_sym == V.mac_chr2 && !ISSPACE(*s)) { /*====== #–½—ß ======*/
+        } else if (Z.M_sym == V.mac_chr2 && !ISSPACE(*s)) { /*====== #å‘½ä»¤ ======*/
             s = M_GetSym(s);
 
-            if (exprFlg && Z.M_sym == '(') {                        /*-- #(®) --*/
+            if (exprFlg && Z.M_sym == '(') {                        /*-- #(å¼) --*/
       JJJ_EXPR:
                 if (exprp) {
-                    /*Filn_Error("%cex()’†‚É%cex‚ğ“ü‚ê‚é‚±‚Æ‚Ío—ˆ‚È‚¢\n",V.mac_chr2,V.mac_chr2);*/
+                    /*Filn_Error("%cex()ä¸­ã«%cexã‚’å…¥ã‚Œã‚‹ã“ã¨ã¯å‡ºæ¥ãªã„\n",V.mac_chr2,V.mac_chr2);*/
+                    /*Filn_Error("%cex() cannot be nested in %cex\n",V.mac_chr2,V.mac_chr2);*/
                     goto LOOP;
                 }
-                exprFlg = 1;    /* defined()—LŒø */
+                exprFlg = 1;    /* defined()æœ‰åŠ¹ */
                 exprp = Z.M_mptr;
                 expr_r = 1;
                 /*expr_ty = k;*/
@@ -3505,7 +3626,7 @@ static void MM_Macc(char const* s, int exmacF, MTREE_T* m, char** v /*, char *fn
             if (k < 0) {
           JJJJ:
 //printf("JJJ %d %s\n",sh, Z.M_name);
-                if (/*v == 0 &&*/ exprFlg) {    /* #–½—ß‚Å‚È‚©‚Á‚½ */
+                if (/*v == 0 &&*/ exprFlg) {    /* #å‘½ä»¤ã§ãªã‹ã£ãŸ */
                     sh = 1/*V.mac_chr2*/;
                     /*StMbuf(Z.mac_chrs2);*/
                     goto JJJ_LBL;
@@ -3551,11 +3672,11 @@ static void MM_Macc(char const* s, int exmacF, MTREE_T* m, char** v /*, char *fn
                 name[0] = 0;
                 exprp = NULL;
             }
-        
-        } else if (Z.M_sym == 'A') {                        /*====== –¼‘O‚¾ ======*/
+
+        } else if (Z.M_sym == 'A') {                        /*====== åå‰ã  ======*/
           #if 0
-            if (V.mac_chr == -1 && gyoto == 1) {    /* ƒ}ƒNƒŠJn•¶š–³‚µ‚Ås“ª‚Ì‚Æ‚« */
-                switch (M_OdrSearch(Z.M_name)) {        /* ƒ}ƒNƒ–½—ß‚È‚ç‚Î‚»‚Ìˆ—‚Ö*/
+            if (V.mac_chr == -1 && gyoto == 1) {        /* ãƒã‚¯ãƒ­é–‹å§‹æ–‡å­—ç„¡ã—ã§è¡Œé ­ã®ã¨ã */
+                switch (M_OdrSearch(Z.M_name)) {        /* ãƒã‚¯ãƒ­å‘½ä»¤ãªã‚‰ã°ãã®å‡¦ç†ã¸*/
                 case M_DEFINE:  case M_UNDEF:   case M_IPR:     case M_REPT:
                 case M_IF:      case M_IFEQ:    case M_ELIF:    case M_ELSE:
                 case M_IFGE:    case M_IFGT:    case M_IFLE:    case M_IFLT:
@@ -3564,7 +3685,7 @@ static void MM_Macc(char const* s, int exmacF, MTREE_T* m, char** v /*, char *fn
                 }
             }
           #endif
-            if (exprFlg && strcmp(Z.M_name, "defined") == 0) {      /* defined(ƒ‰ƒxƒ‹)‚ğ 0 ‚© 1 ‚É•ÏŠ· */
+            if (exprFlg && strcmp(Z.M_name, "defined") == 0) {      /* defined(ãƒ©ãƒ™ãƒ«)ã‚’ 0 ã‹ 1 ã«å¤‰æ› */
       /*JJJ_DEFINED:*/
                 /*printf("!%d\n",exprFlg);*/
               #if 1
@@ -3585,7 +3706,8 @@ static void MM_Macc(char const* s, int exmacF, MTREE_T* m, char** v /*, char *fn
                     s = M_GetSym(s);
                     if (Z.M_sym != ')') {
                         /*MM_MaccErr(fname, line);*/
-                        Filn_Error("defined()‚Ìw’è‚ª‚¨‚©‚µ‚¢!\n");
+                        //Filn_Error("defined()ã®æŒ‡å®šãŒãŠã‹ã—ã„!\n");
+                        Filn_Error("defined() specification error!\n");
                     }
                 }
                 StMbuf(c?"1":"0");
@@ -3593,7 +3715,7 @@ static void MM_Macc(char const* s, int exmacF, MTREE_T* m, char** v /*, char *fn
                 goto LOOP;
             }
       JJJ_LBL:
-            if (Z.MM_cnt) { /* Œ»İ“WŠJ’†‚Ìƒ}ƒNƒ–¼‚Æ“¯‚¶‚È‚ç‚ÎA‚»‚Ì–¼‘O‚Ì‚Ü‚Ü‚É‚·‚é */
+            if (Z.MM_cnt) { /* ç¾åœ¨å±•é–‹ä¸­ã®ãƒã‚¯ãƒ­åã¨åŒã˜ãªã‚‰ã°ã€ãã®åå‰ã®ã¾ã¾ã«ã™ã‚‹ */
                 for (i = 0; i < Z.MM_cnt; i++) {
                     if (strcmp(Z.M_name, Z.MM_name[i]) == 0) {
                         if (sh) StMbuf("\"");
@@ -3603,7 +3725,7 @@ static void MM_Macc(char const* s, int exmacF, MTREE_T* m, char** v /*, char *fn
                     }
                 }
             }
-            if (m && v) {   /* ƒ}ƒNƒ‚Ìˆø”–¼iƒ[ƒJƒ‹–¼j‚Ì‚Æ‚« */
+            if (m && v) {   /* ãƒã‚¯ãƒ­ã®å¼•æ•°åï¼ˆãƒ­ãƒ¼ã‚«ãƒ«åï¼‰ã®ã¨ã */
                 for (i = 0; i < m->argc; i++) {
                     if (strcmp(Z.M_name, m->argv[i]) == 0) {
                         //printf("%s %s\n", Z.M_name, v[i]);
@@ -3619,7 +3741,7 @@ static void MM_Macc(char const* s, int exmacF, MTREE_T* m, char** v /*, char *fn
                 Filn_Error("PrgErr:macro v\n");
             }
 
-            /* #rept, #ipr ‚Åw’è‚³‚ê‚½–¼‘O‚Ì‚Æ‚« */
+            /* #rept, #ipr ã§æŒ‡å®šã•ã‚ŒãŸåå‰ã®ã¨ã */
             for (i = 0; i < Z.rept_argc; i++) {
                 if (Z.rept_name[i] && Z.rept_name[i][0] && strcmp(Z.M_name, Z.rept_name[i]) == 0) {
                     if (sh) StMbuf("\"");
@@ -3628,13 +3750,13 @@ static void MM_Macc(char const* s, int exmacF, MTREE_T* m, char** v /*, char *fn
                     goto LOOP;
                 }
             }
-            if (v) {    /* ˆø”‚ª‚ ‚é‚Æ‚«‚ÍA’P‚Éˆø”‚ğ“WŠJ‚·‚é‚¾‚¯‚ÅA‚»‚Ì’†g‚Ìƒ}ƒNƒ•ÏŠ·‚Í–ß‚Á‚Ä‚©‚ç‚·‚é */
+            if (v) {    /* å¼•æ•°ãŒã‚ã‚‹ã¨ãã¯ã€å˜ã«å¼•æ•°ã‚’å±•é–‹ã™ã‚‹ã ã‘ã§ã€ãã®ä¸­èº«ã®ãƒã‚¯ãƒ­å¤‰æ›ã¯æˆ»ã£ã¦ã‹ã‚‰ã™ã‚‹ */
                 if (sh) {StMbuf(Z.mac_chrs2/*"#"*/);/*sh = 0;*/}
                 StMbuf(Z.M_name);
             } else {
                 MTREE_T *t;
 
-                t = MTREE_Search(Z.M_name); /* ƒ}ƒNƒ–¼‚ğ’T‚· */
+                t = MTREE_Search(Z.M_name); /* ãƒã‚¯ãƒ­åã‚’æ¢ã™ */
                 //printf("MacroName %s 0x%x\n", Z.M_name, t);
                 if (t == NULL) {
                     //if (sh)   {StMbuf(Z.mac_chrs2/*"#"*/); sh = 0;}
@@ -3648,7 +3770,7 @@ static void MM_Macc(char const* s, int exmacF, MTREE_T* m, char** v /*, char *fn
                     s = MM_MaccMacro(s, 0/*sh*/, t);
 #if 1
                     //printf(">M\n");fflush(stdout);
-                    if (mmp && *mmp) {  /* ƒ}ƒNƒ“WŠJ‚Ìˆø”’uŠ·‚Ì‚½‚ß */
+                    if (mmp && *mmp) {  /* ãƒã‚¯ãƒ­å±•é–‹ã®å¼•æ•°ç½®æ›ã®ãŸã‚ */
                         tm = strdupE(mmp);
                         Z.M_mptr  = mmp;
                         /*mmp  = Z.M_mptr;*/
@@ -3683,27 +3805,29 @@ static char const* MM_MaccMacro(char const* s, int sh, MTREE_T* t)
 
   #if 0
 //  MTREE_T *t;
-//  /* ƒ}ƒNƒ–¼‚ğ’T‚· */
+//  /* ãƒã‚¯ãƒ­åã‚’æ¢ã™ */
 //  t = MTREE_Search(Z.M_name);
-//  if (t == NULL) {                    /* ƒ}ƒNƒ–¼‚Å‚È‚©‚Á‚½‚ç‚»‚Ì‚Ü‚Üo—Í */
+//  if (t == NULL) {                    /* ãƒã‚¯ãƒ­åã§ãªã‹ã£ãŸã‚‰ãã®ã¾ã¾å‡ºåŠ› */
 //      if (sh) StMbuf(Z.mac_chrs2/*"#"*/);
 //      StMbuf(Z.M_name);
-//  } else 
+//  } else
   #endif
 
 //printf("MaccMacro start\n");
-    
-    if (t->atr == M_ATR_SET) {  /* #set‚Å’è‹`‚³‚ê‚½–¼‘O‚Ì‚Æ‚« */
+
+    if (t->atr == M_ATR_SET) {  /* #setã§å®šç¾©ã•ã‚ŒãŸåå‰ã®ã¨ã */
         sprintf(Z.MM_wk, S_FMT_D, t->argb);
         if (sh) StMbuf("\"");
         StMbuf(Z.MM_wk);
         if (sh) StMbuf("\"");
 
-    } else if (t->atr == M_ATR_DEF) {   /* ˆø”‚È‚µƒ}ƒNƒ–¼‚Ì‚Æ‚« */
+    } else if (t->atr == M_ATR_DEF) {   /* å¼•æ•°ãªã—ãƒã‚¯ãƒ­åã®ã¨ã */
   L1:
         Z.MM_name[Z.MM_cnt] = strdupE(Z.M_name);
-        if (++Z.MM_cnt > FILN_MAC_NEST)
-            Filn_Exit("ƒ}ƒNƒ“WŠJ‚Å‚ÌƒlƒXƒg‚ª[‚·‚¬‚é(%s “WŠJ’†)\n", Z.MM_name[0]);
+        if (++Z.MM_cnt > FILN_MAC_NEST) {
+            //Filn_Exit("ãƒã‚¯ãƒ­å±•é–‹ã§ã®ãƒã‚¹ãƒˆãŒæ·±ã™ãã‚‹(%s å±•é–‹ä¸­)\n", Z.MM_name[0]);
+            Filn_Exit("Macro expansion nesting too deep (expanding %s)\n", Z.MM_name[0]);
+        }
         if (sh) StMbuf("\"");
         q = Z.errMacFnm, l = Z.errMacLin;
         Z.errMacFnm = t->fname, Z.errMacLin = t->line;
@@ -3712,8 +3836,8 @@ static char const* MM_MaccMacro(char const* s, int sh, MTREE_T* t)
         if (sh) StMbuf("\"");
         SAFE_FREE(Z.MM_name[--Z.MM_cnt]);
 
-    } else if (t->atr == M_ATR_MAC) {   /* ŠÖ”Œ^ƒ}ƒNƒ–¼‚Ì‚Æ‚« */
-        /* ˆø”‚ª–³‚µ‚Ì‚Æ‚«AŒã‚ë‚Ì()‚ª‚ ‚ê‚ÎŠO‚µ, M_ATR_DEF‚Æ“¯‚¶ˆ— */
+    } else if (t->atr == M_ATR_MAC) {   /* é–¢æ•°å‹ãƒã‚¯ãƒ­åã®ã¨ã */
+        /* å¼•æ•°ãŒç„¡ã—ã®ã¨ãã€å¾Œã‚ã®()ãŒã‚ã‚Œã°å¤–ã—, M_ATR_DEFã¨åŒã˜å‡¦ç† */
         if (t->argc == 0) {
             p = s;
             c = *(p = SkipSpc(p)); p++;
@@ -3725,24 +3849,26 @@ static char const* MM_MaccMacro(char const* s, int sh, MTREE_T* t)
             goto L1;
         }
 
-        /* ˆø”‚ ‚èƒ}ƒNƒ‚Ì‚Æ‚« */
+        /* å¼•æ•°ã‚ã‚Šãƒã‚¯ãƒ­ã®ã¨ã */
         Z.MM_name[Z.MM_cnt] = strdupE(Z.M_name);
-        if (++Z.MM_cnt > FILN_MAC_NEST)
-            Filn_Exit("ƒ}ƒNƒ“WŠJ‚Å‚ÌƒlƒXƒg‚ª[‚·‚¬‚é(%s “WŠJ’†)\n", Z.MM_name[0]);
+        if (++Z.MM_cnt > FILN_MAC_NEST) {
+            //Filn_Exit("ãƒã‚¯ãƒ­å±•é–‹ã§ã®ãƒã‚¹ãƒˆãŒæ·±ã™ãã‚‹(%s å±•é–‹ä¸­)\n", Z.MM_name[0]);
+            Filn_Exit("Macro expansion nesting too deep (expanding %s)\n", Z.MM_name[0]);
+        }
         a = callocE(sizeof(char*), t->argc+1);
 
-        /* ()•t‚©‚Ç‚¤‚©‚Ìƒ`ƒFƒbƒN */
+        /* ()ä»˜ã‹ã©ã†ã‹ã®ãƒã‚§ãƒƒã‚¯ */
         k = 0;
         p = M_GetSym(s);
         if (Z.M_sym == '(') {
             k = ')';
             s = p;
-            if (t->argb == 0) { /* ƒ[ƒJƒ‹ƒ‰ƒxƒ‹‚ª‚ ‚é‚¯‚ÇAˆø”‚ª‚È‚¢‚Æ‚« */
+            if (t->argb == 0) { /* ãƒ­ãƒ¼ã‚«ãƒ«ãƒ©ãƒ™ãƒ«ãŒã‚ã‚‹ã‘ã©ã€å¼•æ•°ãŒãªã„ã¨ã */
                 s = M_GetSym(s);
                 goto KKK;
             }
         }
-        /* ’è‹`‚ÌŒÂ”•ªAˆø”‚ğæ“¾ */
+        /* å®šç¾©æ™‚ã®å€‹æ•°åˆ†ã€å¼•æ•°ã‚’å–å¾— */
         for (i = 0; i < t->argb; i++) {
             int r, k1, k2;
             /*r = k1 = k2 = 0;*/
@@ -3783,18 +3909,22 @@ static char const* MM_MaccMacro(char const* s, int sh, MTREE_T* t)
         }
         if (i != t->argb || Z.M_sym == ',') {
             /*MM_MaccErr(fname, line);*/
-            Filn_Error("ƒ}ƒNƒ %s ‚Ìˆø”‚Ì”‚ªˆê’v‚µ‚È‚¢\n", t->name);
+            //Filn_Error("ãƒã‚¯ãƒ­ %s ã®å¼•æ•°ã®æ•°ãŒä¸€è‡´ã—ãªã„\n", t->name);
+            Filn_Error("Macro %s argument count mismatch\n", t->name);
         }
         if (k) {
     KKK:
             if (Z.M_sym != k) {
                 /*MM_MaccErr(fname, line);*/
-                Filn_Error("ƒ}ƒNƒ %s ‚ÌŠ‡ŒÊ()‚ª•Â‚¶‚Ä‚¢‚È‚¢\n", t->name);
+                //Filn_Error("ãƒã‚¯ãƒ­ %s ã®æ‹¬å¼§()ãŒé–‰ã˜ã¦ã„ãªã„\n", t->name);
+                Filn_Error("Macro %s missing closing parenthesis ()\n", t->name);
             }
         }
-        for (i = (int)t->argb; i < t->argc; i++) {   /* ƒ[ƒJƒ‹–¼‚Ìˆ— */
-            if (strlen(V.localPrefix) == 0)
-                Filn_Exit("%clocal ‚ª¶¬‚·‚éƒ‰ƒxƒ‹‚Ìæ“ª•¶š—ñ‚ªw’è‚³‚ê‚Ä‚¢‚È‚¢\n",V.mac_chr);
+        for (i = (int)t->argb; i < t->argc; i++) {   /* ãƒ­ãƒ¼ã‚«ãƒ«åã®å‡¦ç† */
+            if (strlen(V.localPrefix) == 0) {
+                //Filn_Exit("%clocal ãŒç”Ÿæˆã™ã‚‹ãƒ©ãƒ™ãƒ«ã®å…ˆé ­æ–‡å­—åˆ—ãŒæŒ‡å®šã•ã‚Œã¦ã„ãªã„\n",V.mac_chr);
+                Filn_Exit("Prefix string for labels generated by %clocal is not specified\n",V.mac_chr);
+            }
             sprintf(Z.MM_wk, "%s%u", V.localPrefix, Z.MM_localNo++);
             a[i] = strdupE(Z.MM_wk);
         }
@@ -3807,17 +3937,12 @@ static char const* MM_MaccMacro(char const* s, int sh, MTREE_T* t)
         for (i = 0; i < t->argc; i++)
             SAFE_FREE(a[i]);
         SAFE_FREE(a);
-		if (Z.MM_cnt > 0) {
-			--Z.MM_cnt;
-		    SAFE_FREE(Z.MM_name[Z.MM_cnt]);
-		} else {
-			//Filn_Warnning("inner error\n");
-		}
+        SAFE_FREE(Z.MM_name[--Z.MM_cnt]);
 
-    } else if (t->atr == M_ATR_RSV) {   /* —\–ñŒêƒ‰ƒxƒ‹‚¾‚Á‚½‚Æ‚« */
+    } else if (t->atr == M_ATR_RSV) {   /* äºˆç´„èªãƒ©ãƒ™ãƒ«ã ã£ãŸã¨ã */
         MM_MaccMacroAtrRsv((int)t->argb, t->name);
 
-    } else {    /* ‹L†“™‚¾‚Á‚½ */
+    } else {    /* è¨˜å·ç­‰ã ã£ãŸ */
         if (sh) StMbuf(Z.mac_chrs2/*"#"*/);
         StMbuf(Z.M_name);
     }
@@ -3826,6 +3951,8 @@ static char const* MM_MaccMacro(char const* s, int sh, MTREE_T* t)
 }
 
 
+/** Expand reserved macro such as __FILE__, __LINE__, etc.
+ */
 static void MM_MaccMacroAtrRsv(int argb, char const* t_name)
 {
     char    name[FILN_NAME_SIZE+2];
@@ -3863,7 +3990,8 @@ static void MM_MaccMacroAtrRsv(int argb, char const* t_name)
         break;
     default:
         /*MM_MaccErr(fname, line);*/
-		Filn_Error("PrgErr:—\–ñ#define–¼(%s)\n",t_name);
+        //Filn_Error("PrgErr:äºˆç´„#defineå(%s)\n",t_name);
+        Filn_Error("PrgErr: reserved #define name (%s)\n",t_name);
     }
 }
 
@@ -3899,26 +4027,27 @@ static void MM_Macc_MRept(char const* name, char* d, char const** s0 /*, char *f
     uint32_t    line;
     uint32_t    n;
 
-    /* ƒGƒ‰[—pmacro,rept,iprŠJnˆÊ’u‚ğ•Û‘¶ */
+    /* ã‚¨ãƒ©ãƒ¼ç”¨macro,rept,ipré–‹å§‹ä½ç½®ã‚’ä¿å­˜ */
     fname = Z.errMacFnm, line = Z.errMacLin+1, n = 0;
 
-    /* ƒŠƒs[ƒg‰ñ”‚ğ‹‚ß‚é */
+    /* ãƒªãƒ”ãƒ¼ãƒˆå›æ•°ã‚’æ±‚ã‚ã‚‹ */
     num = (int)M_Expr(d);
 //printf("{rept}%s(%ld)= <<<%s>>>\n",name,num,d);
     Z.M_mptr = d;
     *Z.M_mptr = 0;
     M_ChkEol(Z.M_sym, Z.M_ep);
 
-    /* ‘Î‰‚·‚é #endrept ‚ğ’T‚· */
+    /* å¯¾å¿œã™ã‚‹ #endrept ã‚’æ¢ã™ */
     s = *s0;
     r = 0;
     goto J1;
     for (; ;) {
-        /* ‚Ü‚¸‰üs‚ğ’T‚· */
+        /* ã¾ãšæ”¹è¡Œã‚’æ¢ã™ */
         p = strchr(s, '\n');
         if (p == NULL) {
             s = STREND(s);
-            Filn_Error("‘Î‰‚·‚é %cendrept ‚ª‚È‚¢\n",V.mac_chr);
+            //Filn_Error("å¯¾å¿œã™ã‚‹ %cendrept ãŒãªã„\n",V.mac_chr);
+            Filn_Error("No matching %cendrept found\n",V.mac_chr);
             *s0 = s;
             return;
         }
@@ -3953,7 +4082,8 @@ static void MM_Macc_MRept(char const* name, char* d, char const** s0 /*, char *f
     if (Z.rept_argc < 0)
         Filn_Exit("PrgErr:rept_argc\n");
     if (Z.rept_argc >= FILN_REPT_NEST) {
-        Filn_Exit("%crept ‚ÌƒlƒXƒg‚ª[‚·‚¬‚é\n",V.mac_chr);
+        //Filn_Exit("%crept ã®ãƒã‚¹ãƒˆãŒæ·±ã™ãã‚‹\n",V.mac_chr);
+        Filn_Exit("%crept nesting too deep\n",V.mac_chr);
     }
     Z.rept_name[Z.rept_argc] = NULL;
     Z.rept_argv[Z.rept_argc] = NULL;
@@ -3962,7 +4092,7 @@ static void MM_Macc_MRept(char const* name, char* d, char const** s0 /*, char *f
         Z.rept_argv[Z.rept_argc] = wk;
     }
     Z.rept_argc++;
-    
+
     for (i = 0; i < num; i++) {
         sprintf(wk, "%d", i);
         Z.errMacFnm = fname, Z.errMacLin = line;
@@ -3973,7 +4103,7 @@ static void MM_Macc_MRept(char const* name, char* d, char const** s0 /*, char *f
     Z.rept_argv[Z.rept_argc] = NULL;
     SAFE_FREE(q);
 
-    /* ƒGƒ‰[—pmacro,rept,iprŠJnˆÊ’u‚ğXV */
+    /* ã‚¨ãƒ©ãƒ¼ç”¨macro,rept,ipré–‹å§‹ä½ç½®ã‚’æ›´æ–° */
     Z.errMacFnm = fname, Z.errMacLin = line + n;
 }
 
@@ -3990,19 +4120,20 @@ static void MM_Macc_MIpr(char const* name, char const** s0, int argc, char const
     char const* fname;
     uint32_t    line,n;
 
-    /* ƒGƒ‰[—pmacro,rept,iprŠJnˆÊ’u‚ğ•Û‘¶ */
+    /* ã‚¨ãƒ©ãƒ¼ç”¨macro,rept,ipré–‹å§‹ä½ç½®ã‚’ä¿å­˜ */
     fname = Z.errMacFnm, line = Z.errMacLin+1, n = 0;
 
-    /* ‘Î‰‚·‚é #endipr ‚ğ’T‚· */
+    /* å¯¾å¿œã™ã‚‹ #endipr ã‚’æ¢ã™ */
     s = *s0;
     r = 0;
     goto J1;
     for (; ;) {
-        /* ‚Ü‚¸‰üs‚ğ’T‚· */
+        /* ã¾ãšæ”¹è¡Œã‚’æ¢ã™ */
         p = strchr(s, '\n');
         if (p == NULL) {
             s = STREND(s);
-            Filn_Error("‘Î‰‚·‚é %cendipr ‚ª‚È‚¢\n",V.mac_chr);
+            //Filn_Error("å¯¾å¿œã™ã‚‹ %cendipr ãŒãªã„\n",V.mac_chr);
+            Filn_Error("No matching %cendipr found\n",V.mac_chr);
             *s0 = s;
             return;
         }
@@ -4036,7 +4167,8 @@ static void MM_Macc_MIpr(char const* name, char const** s0, int argc, char const
     if (argc < 0)
         Filn_Exit("PrgErr:Z.rept_argc. %cipr\n",V.mac_chr);
     if (Z.rept_argc >= FILN_REPT_NEST) {
-        Filn_Exit("%cipr, %crept ‚ÌƒlƒXƒg‚ª[‚·‚¬‚é\n",V.mac_chr,V.mac_chr);
+        //Filn_Exit("%cipr, %crept ã®ãƒã‚¹ãƒˆãŒæ·±ã™ãã‚‹\n",V.mac_chr,V.mac_chr);
+        Filn_Exit("%cipr, %crept nesting too deep\n",V.mac_chr,V.mac_chr);
     }
     Z.rept_name[Z.rept_argc] = name;
     Z.rept_argc++;
@@ -4050,13 +4182,13 @@ static void MM_Macc_MIpr(char const* name, char const** s0, int argc, char const
     Z.rept_argv[Z.rept_argc] = NULL;
     SAFE_FREE(q);
 
-    /* ƒGƒ‰[—pmacro,rept,iprŠJnˆÊ’u‚ğXV */
+    /* ã‚¨ãƒ©ãƒ¼ç”¨macro,rept,ipré–‹å§‹ä½ç½®ã‚’æ›´æ–° */
     Z.errMacFnm = fname, Z.errMacLin = line + n;
 }
 
 
 
-/** ƒ}ƒNƒ“WŠJƒ‚[ƒh•t‚«1s“ü—Í 
+/** ãƒã‚¯ãƒ­å±•é–‹ãƒ¢ãƒ¼ãƒ‰ä»˜ã1è¡Œå…¥åŠ›
  */
 static char *Filn_GetLineMac(void)
 {
@@ -4066,7 +4198,7 @@ static char *Filn_GetLineMac(void)
     int         c,o;
 
   RETRY:
-    /* ƒ}ƒNƒ“WŠJ‚³‚ê‚½•¶š—ñƒoƒbƒtƒ@‚æ‚è‚Psæ‚èo‚· */
+    /* ãƒã‚¯ãƒ­å±•é–‹ã•ã‚ŒãŸæ–‡å­—åˆ—ãƒãƒƒãƒ•ã‚¡ã‚ˆã‚Šï¼‘è¡Œå–ã‚Šå‡ºã™ */
     Z.errMacFnm = NULL, Z.errMacLin = 0;
     if (Z.MM_ptr) {
         p = Z.linbuf;
@@ -4082,14 +4214,14 @@ static char *Filn_GetLineMac(void)
         return Z.linbuf;
     }
 
-  GETL: /* ƒtƒ@ƒCƒ‹‚æ‚èˆês“ü—Í(s˜AŒ‹Ï‚İ) */
+  GETL: /* ãƒ•ã‚¡ã‚¤ãƒ«ã‚ˆã‚Šä¸€è¡Œå…¥åŠ›(è¡Œé€£çµæ¸ˆã¿) */
     s = Filn_GetLine();
     if (s == NULL) {
         Z.linbuf[0] = 0;
         return NULL;
     }
 
-    /* #if‚Å‹U‚Ìˆ—‚ğ‚µ‚Ä‚¢‚é‚Æ‚« */
+    /* #ifã§å½ã®å‡¦ç†ã‚’ã—ã¦ã„ã‚‹ã¨ã */
     if (Z.MM_mifChk) {
         s = SkipSpc(s);
         strcpy(Z.M_mbuf, s);
@@ -4097,7 +4229,7 @@ static char *Filn_GetLineMac(void)
         goto RETRY;
     }
 
-    /* #macro #rept ‚Ìˆ— */
+    /* #macro #rept ã®å‡¦ç† */
     s = SkipSpc(s);
     c = *s;
     if (M_ChkMchr(s)) {
@@ -4105,7 +4237,8 @@ static char *Filn_GetLineMac(void)
         s = SkipSpc(s);
         /*c = *s;*/
         if (Z.M_sym != 'A') {
-            Filn_Error("%cs‚Ì–½—ß‚ª‚¨‚©‚µ‚¢\n",V.mac_chr);
+            //Filn_Error("%cè¡Œã®å‘½ä»¤ãŒãŠã‹ã—ã„\n",V.mac_chr);
+            Filn_Error("%c line command error.\n",V.mac_chr);
             goto GETL;
         }
         o = M_OdrSearch(Z.M_name);
@@ -4114,12 +4247,14 @@ static char *Filn_GetLineMac(void)
                 char**  a = NULL;
                 int     i;
                 int     ac = ((MTREE_T*)Z.macBgnStr)->argc;
-                /* –¼‘O‚È‚µ‚Ü‚­‚ë‚Ì‚Æ‚«‚Ìˆ— */
+                /* åå‰ãªã—ã¾ãã‚ã®ã¨ãã®å‡¦ç† */
                 if (ac) {
                     a = callocE(sizeof(char*), ac);
-                    for (i = 0; i < ac; i++) {   /* ƒ[ƒJƒ‹–¼‚Ìˆ— */
-                        if (strlen(V.localPrefix) == 0)
-                            Filn_Exit("%clocal ‚ª¶¬‚·‚éƒ‰ƒxƒ‹‚Ìæ“ª•¶š—ñ‚ªw’è‚³‚ê‚Ä‚¢‚È‚¢\n",V.mac_chr);
+                    for (i = 0; i < ac; i++) {   /* ãƒ­ãƒ¼ã‚«ãƒ«åã®å‡¦ç† */
+                        if (strlen(V.localPrefix) == 0) {
+                            //Filn_Exit("%clocal ãŒç”Ÿæˆã™ã‚‹ãƒ©ãƒ™ãƒ«ã®å…ˆé ­æ–‡å­—åˆ—ãŒæŒ‡å®šã•ã‚Œã¦ã„ãªã„\n",V.mac_chr);
+                            Filn_Exit("Prefix string for labels generated by %clocal is not specified\n",V.mac_chr);
+                        }
                         sprintf(Z.MM_wk, "%s%u", V.localPrefix, Z.MM_localNo++);
                         a[i] = strdupE(Z.MM_wk);
                     }
@@ -4127,16 +4262,7 @@ static char *Filn_GetLineMac(void)
                 InitStMbuf();
                 Z.errMacFnm = Z.inclp->name, Z.errMacLin = Z.inclp->line;
                 MM_Macc(((MTREE_T*)Z.macBgnStr)->buf, 1, (a ? ((MTREE_T*)Z.macBgnStr) : NULL), a/*, s, l*/, "<macbgn>");
-             #if 1
                 M_FreeArg(&ac, &a);
-             #else
-                if (((MTREE_T*)Z.macBgnStr)->argc) {
-                    for (i = 0; i < ((MTREE_T*)Z.macBgnStr)->argc; i++) {
-                        SAFE_FREE(a[i]);
-                    }
-                    SAFE_FREE(a);
-                }
-             #endif
                 Z.errMacFnm = NULL, Z.errMacLin = 0;
                 Z.MM_ptr = Z.M_mbuf;
                 M_Undef("_macro\xff_");
@@ -4147,16 +4273,16 @@ static char *Filn_GetLineMac(void)
             InitStMbuf();
             s = Z.inclp->name;
             l = Z.inclp->line;
-            M_Ipr(Z.linbuf);                /* ˆê’U#endipr ‚Ü‚Å“Ç‚İ‚İ */
+            M_Ipr(Z.linbuf);                /* ä¸€æ—¦#endipr ã¾ã§èª­ã¿è¾¼ã¿ */
             goto RPT;
         } else if (o == M_REPT) {
             InitStMbuf();
             s = Z.inclp->name;
             l = Z.inclp->line;
-            M_Rept(Z.linbuf);               /* ˆê’U#endrept‚Ü‚Å“Ç‚İ‚İ */
+            M_Rept(Z.linbuf);               /* ä¸€æ—¦#endreptã¾ã§èª­ã¿è¾¼ã¿ */
           RPT:
-            p = strdupE(Z.M_mbuf);      /* ƒoƒbƒtƒ@‚É’™‚¦ */
-            InitStMbuf();                   /* ƒ}ƒNƒ“à‚Ì#rept‚Æ“¯—l‚Éˆ—‚·‚é */
+            p = strdupE(Z.M_mbuf);      /* ãƒãƒƒãƒ•ã‚¡ã«è²¯ãˆ */
+            InitStMbuf();                   /* ãƒã‚¯ãƒ­å†…ã®#reptã¨åŒæ§˜ã«å‡¦ç†ã™ã‚‹ */
             Z.errMacFnm = s, Z.errMacLin = l;
             MM_Macc(p, 1, NULL, NULL/*, s, l*/, "<iprpt>");
             Z.errMacFnm = NULL, Z.errMacLin = 0;
@@ -4164,18 +4290,18 @@ static char *Filn_GetLineMac(void)
             Z.MM_ptr = Z.M_mbuf;
             goto RETRY;
         }
-    } else if (c == 0) {    /* ‹ós‚Ì‚Æ‚« */
-        if (V.opt_delspc) { /* ‹ó”’‚ğˆ³k‚·‚é‚È‚ç‰üs‚ğƒXƒLƒbƒv */
+    } else if (c == 0) {    /* ç©ºè¡Œã®ã¨ã */
+        if (V.opt_delspc) { /* ç©ºç™½ã‚’åœ§ç¸®ã™ã‚‹ãªã‚‰æ”¹è¡Œã‚’ã‚¹ã‚­ãƒƒãƒ— */
             goto GETL;
-        } else if (Z.sl_lst) {  /* ƒ\[ƒX‘}“ü‚ ‚é‚È‚ç‰üsƒXƒLƒbƒv */
+        } else if (Z.sl_lst) {  /* ã‚½ãƒ¼ã‚¹æŒ¿å…¥ã‚ã‚‹ãªã‚‰æ”¹è¡Œã‚¹ã‚­ãƒƒãƒ— */
             goto GETL;
-        } else {            /* ‹ós‚Ì‚Ü‚Ü */
+        } else {            /* ç©ºè¡Œã®ã¾ã¾ */
             //strcpy(s, "\n");
         }
     }
 
-    /* ‚Ps‚ğˆê’UƒVƒ“ƒ{ƒ‹‚É•ªŠ„‚µ‚Ä“Ç‚İÄ“x‚­‚Á‚Â‚¯‚Ps‚É‚·‚éB */
-    /* “r’†ƒ}ƒNƒ‚ª‚ ‚ê‚Î“WŠJ‚·‚é */
+    /* ï¼‘è¡Œã‚’ä¸€æ—¦ã‚·ãƒ³ãƒœãƒ«ã«åˆ†å‰²ã—ã¦èª­è¾¼ã¿å†åº¦ãã£ã¤ã‘ï¼‘è¡Œã«ã™ã‚‹ã€‚ */
+    /* é€”ä¸­ãƒã‚¯ãƒ­ãŒã‚ã‚Œã°å±•é–‹ã™ã‚‹ */
     InitStMbuf();
     Z.errMacFnm = NULL, Z.errMacLin = 0;
     MM_Macc(Z.linbuf, 0, NULL, NULL/*, NULL, 0*/,"<linbuf>");
@@ -4187,7 +4313,7 @@ static char *Filn_GetLineMac(void)
 
 
 
-/** ˆês“ü—Í. #‚Ån‚Ü‚és‚Ìˆ—‚ğs‚¤
+/** ä¸€è¡Œå…¥åŠ›. #ã§å§‹ã¾ã‚‹è¡Œã®å‡¦ç†ã‚’è¡Œã†
  */
 static char *Filn_GetsMif(void)
 {
@@ -4196,7 +4322,7 @@ static char *Filn_GetsMif(void)
     val_t       val;
 
   RETRY:
-    /* ˆês“ü—Í */
+    /* ä¸€è¡Œå…¥åŠ› */
     Z.MM_mifChk = (Z.mifChkSnc || Z.mifStk[Z.mifCur] >= 2);
     s = Filn_GetLineMac();
     if (s == NULL) {
@@ -4207,9 +4333,9 @@ static char *Filn_GetsMif(void)
     }
 //printf(">%s\n",s);
 
-    s = SkipSpc(s);                     /* s“ª‹ó”’ƒXƒLƒbƒv */
-    if (M_ChkMchr(s) == 0) {            /* ƒvƒŠƒvƒƒZƒXs‚Å‚È‚¯‚ê‚Î‘¦ŒøA–ß‚é */
-        if (Z.MM_mifChk)                    /* #if‚Å–¢ˆ—•”•ª‚È‚ç‚ÎŸ‚Ìs‚ğ“Ç‚İ‚Ş */
+    s = SkipSpc(s);                     /* è¡Œé ­ç©ºç™½ã‚¹ã‚­ãƒƒãƒ— */
+    if (M_ChkMchr(s) == 0) {            /* ãƒ—ãƒªãƒ—ãƒ­ã‚»ã‚¹è¡Œã§ãªã‘ã‚Œã°å³åŠ¹ã€æˆ»ã‚‹ */
+        if (Z.MM_mifChk)                    /* #ifã§æœªå‡¦ç†éƒ¨åˆ†ãªã‚‰ã°æ¬¡ã®è¡Œã‚’èª­ã¿è¾¼ã‚€ */
             goto RETRY;
         return Z.linbuf;
     }
@@ -4221,12 +4347,13 @@ static char *Filn_GetsMif(void)
     n = M_OdrSearch(Z.M_name);
     if (n < 0) {
   E1:
-        Filn_Error("%cs‚Ì–½—ß‚ª‚¨‚©‚µ‚¢\n",V.mac_chr);
+        //Filn_Error("%cè¡Œã®å‘½ä»¤ãŒãŠã‹ã—ã„\n",V.mac_chr);
+        Filn_Error("%c line command error\n",V.mac_chr);
         goto RETRY;
     }
     s = SkipSpc(s);
 
-    /* #ğŒƒRƒ“ƒpƒCƒ‹‚Å‚Ì“Ç‚İ”ò‚Î‚µˆ— */
+    /* #æ¡ä»¶ã‚³ãƒ³ãƒ‘ã‚¤ãƒ«ã§ã®èª­ã¿é£›ã°ã—å‡¦ç† */
     if (Z.mifStk[Z.mifCur] >= 2) {
         switch(n) {
         case M_IF:  case M_IFEQ:/* case M_IFNE:*/
@@ -4283,8 +4410,10 @@ static char *Filn_GetsMif(void)
             val = M_Expr(s);
             s = Z.M_ep;
             M_ChkEol(Z.M_sym, s);
-            if (Z.mifCur >= FILN_IF_NEST)
-                Filn_Exit("%cif ‚ÌƒlƒXƒg‚ª[‚·‚¬‚é",V.mac_chr);
+            if (Z.mifCur >= FILN_IF_NEST) {
+                //Filn_Exit("%cif ã®ãƒã‚¹ãƒˆãŒæ·±ã™ãã‚‹",V.mac_chr);
+                Filn_Exit("%cif nesting too deep",V.mac_chr);
+            }
             switch (n) {
             /*case M_IFNE:*/
             case M_IF:  val = (val != 0); break;
@@ -4296,7 +4425,7 @@ static char *Filn_GetsMif(void)
             }
             Z.mifStk[++Z.mifCur] = (val) ? 1 : 2;
         }
-//      /*printf("mifCur:%d mifStk:%d %d\n", Z.mifCur, Z.mifStk[Z.mifCur], val);*/
+        // /*printf("mifCur:%d mifStk:%d %d\n", Z.mifCur, Z.mifStk[Z.mifCur], val);*/
         break;
 
     case M_ELIF:
@@ -4304,40 +4433,48 @@ static char *Filn_GetsMif(void)
             val = M_Expr(s);
             s = Z.M_ep;
             M_ChkEol(Z.M_sym, s);
-            if (Z.mifStk[Z.mifCur] == 2)
+            if (Z.mifStk[Z.mifCur] == 2) {
                 Z.mifStk[Z.mifCur] = (val) ? 1 : 2;
-            else if (Z.mifStk[Z.mifCur] == 0)
-                Filn_Error("%celif ‚ª‚ ‚Ü‚Á‚Ä‚¢‚é",V.mac_chr);
-            else
+            } else if (Z.mifStk[Z.mifCur] == 0) {
+                //Filn_Error("%celif ãŒã‚ã¾ã£ã¦ã„ã‚‹",V.mac_chr);
+                Filn_Error("%celif is excessive",V.mac_chr);
+            } else {
                 Z.mifStk[Z.mifCur] = 3;
+            }
         }
         break;
 
     case M_ELSE:
         M_ChkEol(0, s);
-        if (Z.mifStk[Z.mifCur] == 2)
+        if (Z.mifStk[Z.mifCur] == 2) {
             Z.mifStk[Z.mifCur] = 1;
-        else if (Z.mifStk[Z.mifCur] == 0/* || Z.mifStk[Z.mifCur] == 3*/)
-            Filn_Error("%celse ‚ª‚ ‚Ü‚Á‚Ä‚¢‚é",V.mac_chr);
-        else
+        } else if (Z.mifStk[Z.mifCur] == 0/* || Z.mifStk[Z.mifCur] == 3*/) {
+            //Filn_Error("%celse ãŒã‚ã¾ã£ã¦ã„ã‚‹",V.mac_chr);
+            Filn_Error("%celse is excessive",V.mac_chr);
+        } else {
             Z.mifStk[Z.mifCur] = 3;
-//printf("@>else %d:%d\n", Z.mifCur, Z.mifStk[Z.mifCur]);
+        }
+        //printf("@>else %d:%d\n", Z.mifCur, Z.mifStk[Z.mifCur]);
         break;
 
     case M_ENDIF:
         M_ChkEol(0, s);
         Z.mifStk[Z.mifCur] = 0;
-        if (Z.mifCur == 0)
-            Filn_Error("%cendif ‚ª‚ ‚Ü‚Á‚Ä‚é",V.mac_chr);
-        else
+        if (Z.mifCur == 0) {
+            //Filn_Error("%cendif ãŒã‚ã¾ã£ã¦ã‚‹",V.mac_chr);
+            Filn_Error("%cendif is excessive",V.mac_chr);
+        } else {
             --Z.mifCur;
-//printf("@>endif %d\n", Z.mifCur);
+        }
+        //printf("@>endif %d\n", Z.mifCur);
         break;
 
     case M_MAC_S:
         M_ChkEol(0, s);
-        if (Z.mifMacCur == FILN_IF_NEST)
-            Filn_Exit("%cƒ}ƒNƒ‚ÌƒlƒXƒg‚ª[‚·‚¬‚Ü‚·\n",V.mac_chr);
+        if (Z.mifMacCur == FILN_IF_NEST) {
+            //Filn_Exit("%cãƒã‚¯ãƒ­ã®ãƒã‚¹ãƒˆãŒæ·±ã™ãã¾ã™\n",V.mac_chr);
+            Filn_Exit("%cmacro nesting too deep\n",V.mac_chr);
+        }
         Z.mifMacStk[++Z.mifMacCur] = Z.mifCur;
         break;
 
@@ -4347,7 +4484,8 @@ static char *Filn_GetsMif(void)
             Filn_Exit("PrgErr:#<E>\n");
         val = Z.mifMacStk[Z.mifMacCur--];
         if ((int)val != Z.mifCur) {
-            Filn_Error("ƒ}ƒNƒ’†‚Ì%cif‚Ì‘Î‰‚ªæ‚ê‚Ä‚¢‚È‚¢\n",V.mac_chr);
+            //Filn_Error("ãƒã‚¯ãƒ­ä¸­ã®%cifã®å¯¾å¿œãŒå–ã‚Œã¦ã„ãªã„\n",V.mac_chr);
+            Filn_Error("Unmatched %cif in macro\n",V.mac_chr);
         }
         Z.mifCur = (int)val;
         break;
@@ -4357,22 +4495,24 @@ static char *Filn_GetsMif(void)
         if (Z.mifStk[Z.mifCur] >= 2)
             break;
         if (Z.mifMacCur == 0) {
-            Filn_Error("%cƒ}ƒNƒŠO‚Å %cexitmacro ‚ªŒ»‚ê‚½\n",V.mac_chr,V.mac_chr);
+            //Filn_Error("%cãƒã‚¯ãƒ­å¤–ã§ %cexitmacro ãŒç¾ã‚ŒãŸ\n",V.mac_chr,V.mac_chr);
+            Filn_Error("%c exitmacro appeared outside macro\n",V.mac_chr,V.mac_chr);
             break;
         }
-        /* ƒ}ƒNƒ‚ÌI‚í‚è‚Ü‚ÅA“Ç‚İ”ò‚Î‚· */
+        /* ãƒã‚¯ãƒ­ã®çµ‚ã‚ã‚Šã¾ã§ã€èª­ã¿é£›ã°ã™ */
         val = 0;
         for (; ;) {
             s = Filn_GetLineMac();
             if (s == NULL) {
-                Filn_Error("ƒ}ƒNƒ“WŠJ“r’†(%cexitmacro’Eo’†)‚Å EOF ‚Æ‚È‚Á‚½!?\n",V.mac_chr);
+                //Filn_Error("ãƒã‚¯ãƒ­å±•é–‹é€”ä¸­(%cexitmacroè„±å‡ºä¸­)ã§ EOF ã¨ãªã£ãŸ!?\n",V.mac_chr);
+                Filn_Error("EOF occurred during macro expansion (%cexitmacro escape in progress) !?\n",V.mac_chr);
                 return NULL;
             }
             if (*s == V.mac_chr) {
-                if (strcmp(s+1,"_S\xFF_") == 0) {           /* ƒ}ƒNƒ‚Ìn‚Ü‚è‚ª‚ ‚ç‚í‚ê‚½ */
+                if (strcmp(s+1,"_S\xFF_") == 0) {           /* ãƒã‚¯ãƒ­ã®å§‹ã¾ã‚ŠãŒã‚ã‚‰ã‚ã‚ŒãŸ */
                     val++;
-                } else if (strcmp(s+1,"_E\xFF_") == 0) {    /* ƒ}ƒNƒ‚ÌI‚í‚è‚ª‚ ‚Á‚½ */
-                    if (val == 0)                           /* ‘Î‰‚·‚éƒ}ƒNƒ‚Ìn‚Ü‚è‚ª‚È‚¯‚ê‚Î’T‚µ‹‚ß‚½ƒ}ƒNƒ‚ÌI‚í‚è‚¾ */
+                } else if (strcmp(s+1,"_E\xFF_") == 0) {    /* ãƒã‚¯ãƒ­ã®çµ‚ã‚ã‚ŠãŒã‚ã£ãŸ */
+                    if (val == 0)                           /* å¯¾å¿œã™ã‚‹ãƒã‚¯ãƒ­ã®å§‹ã¾ã‚ŠãŒãªã‘ã‚Œã°æ¢ã—æ±‚ã‚ãŸãƒã‚¯ãƒ­ã®çµ‚ã‚ã‚Šã  */
                         break;
                     --val;
                 }
@@ -4380,7 +4520,7 @@ static char *Filn_GetsMif(void)
         }
         if (Z.mifMacCur == 0)
             Filn_Exit("PrgErr:#<E>.\n");
-        Z.mifCur = Z.mifMacStk[Z.mifMacCur--];              /* ‹­§“I‚É #if ‚ÌƒlƒXƒg‚ğ’²®‚·‚é */
+        Z.mifCur = Z.mifMacStk[Z.mifMacCur--];              /* å¼·åˆ¶çš„ã« #if ã®ãƒã‚¹ãƒˆã‚’èª¿æ•´ã™ã‚‹ */
         break;
 
     case M_PRINT:
@@ -4406,7 +4546,8 @@ static char *Filn_GetsMif(void)
     case M_DEFINE:
     case M_UNDEF:
     case M_MACRO:
-        Filn_Error("PrgErr:%c‚Ån‚Ü‚és\n",V.mac_chr);
+        //Filn_Error("PrgErr:%cã§å§‹ã¾ã‚‹è¡Œ\n",V.mac_chr);
+        Filn_Error("PrgErr: line starts with %c\n",V.mac_chr);
         break;
 
     case M_BEGIN:
@@ -4418,11 +4559,14 @@ static char *Filn_GetsMif(void)
     case M_ENDFOR:
     case M_ENDREPT:
     case M_ENDIPR:
-        Filn_Error("%c%s ‚Ì‘Î‚Æ‚È‚é‚×‚«‚à‚Ì‚ª‚È‚¢\n", V.mac_chr, Z.M_name);
+        //Filn_Error("%c%s ã®å¯¾ã¨ãªã‚‹ã¹ãã‚‚ã®ãŒãªã„\n", V.mac_chr, Z.M_name);
+        Filn_Error("No matching pair for %c%s\n", V.mac_chr, Z.M_name);
         break;
 
     default:
-		Filn_Error("—\Šú‚µ‚È‚¢ %c ‚Ån‚Ü‚és‚ª‚ ‚é\n", V.mac_chr);
+        //Filn_Error("äºˆæœŸã—ãªã„ %c ã§å§‹ã¾ã‚‹è¡ŒãŒã‚ã‚‹\n", V.mac_chr);
+        Filn_Error("Unexpected line starting with %c found\n", V.mac_chr);
+        break;
     }
 
     goto RETRY;
@@ -4434,8 +4578,8 @@ static char *Filn_GetsMif(void)
 /*--------------------------------------------------------------------------*/
 
 
-/** ƒ}ƒNƒ“WŠJ•t‚Ps“ü—Í. malloc ‚µ‚½ƒƒ‚ƒŠ‚ğ•Ô‚·‚Ì‚ÅAŒÄ‚Ño‚µ‘¤‚ÅŠJ•ú‚·‚é‚±‚ÆB
- * ÅŒã‚É•K‚¸ '\n' ‚ª‚Â‚­
+/** ãƒã‚¯ãƒ­å±•é–‹ä»˜ï¼‘è¡Œå…¥åŠ›. malloc ã—ãŸãƒ¡ãƒ¢ãƒªã‚’è¿”ã™ã®ã§ã€å‘¼ã³å‡ºã—å´ã§é–‹æ”¾ã™ã‚‹ã“ã¨ã€‚
+ * æœ€å¾Œã«å¿…ãš '\n' ãŒã¤ã
  */
 char *Filn_Gets(void)
 {
@@ -4443,7 +4587,7 @@ char *Filn_Gets(void)
     SRCLIST*    sl;
 
   RETRY:
-    /* ƒ}ƒNƒ“WŠJ‘O‚Ìƒ\[ƒX‚ğƒRƒƒ“ƒg‚âs”Ô†/ƒtƒ@ƒCƒ‹–¼‚Æ‚µ‚Ä“ü—Í‚·‚é */
+    /* ãƒã‚¯ãƒ­å±•é–‹å‰ã®ã‚½ãƒ¼ã‚¹ã‚’ã‚³ãƒ¡ãƒ³ãƒˆã‚„è¡Œç•ªå·/ãƒ•ã‚¡ã‚¤ãƒ«åã¨ã—ã¦å…¥åŠ›ã™ã‚‹ */
     sl = Z.sl_lst;
   #if 0
     if (Z.sl_buf) {
@@ -4468,7 +4612,7 @@ char *Filn_Gets(void)
             *p = 0;
             s = m;
         } else {
-            /* s == NULL ‚Í EOF */
+            /* s == NULL is EOF */
         }
         if (Z.sl_lst == NULL) {
             //Z.sl_buf  = s;
@@ -4481,7 +4625,7 @@ char *Filn_Gets(void)
 
 
 
-/** Œ»İ“ü—Í’†‚Ìƒtƒ@ƒCƒ‹–¼‚Æs”Ô†‚ğ“¾‚é 
+/** ç¾åœ¨å…¥åŠ›ä¸­ã®ãƒ•ã‚¡ã‚¤ãƒ«åã¨è¡Œç•ªå·ã‚’å¾—ã‚‹
  */
 void Filn_GetFnameLine(char const** s, int* line)
 {
@@ -4491,13 +4635,13 @@ void Filn_GetFnameLine(char const** s, int* line)
 
 
 
-/** name ‚ªdefine ‚³‚ê‚Ä‚¢‚é‚©’²‚×A‚³‚ê‚Ä‚¢‚ê‚Î0ˆÈŠO‚ğ•Ô‚·B
- * ‚»‚Ì‚Æ‚« *strp‚É’è‹`•¶š—ñ‚Ö‚Ìƒ|ƒCƒ“ƒ^‚ğ“ü‚ê‚Ä•Ô‚·
+/** name ãŒdefine ã•ã‚Œã¦ã„ã‚‹ã‹èª¿ã¹ã€ã•ã‚Œã¦ã„ã‚Œã°0ä»¥å¤–ã‚’è¿”ã™ã€‚
+ * ãã®ã¨ã *strpã«å®šç¾©æ–‡å­—åˆ—ã¸ã®ãƒã‚¤ãƒ³ã‚¿ã‚’å…¥ã‚Œã¦è¿”ã™
  */
 int Filn_GetLabel(char const* name, char const** strp)
 {
     MTREE_T* t;
-    
+
     t = MTREE_Search(name);
     if (t) {
         if (strp)
@@ -4508,8 +4652,8 @@ int Filn_GetLabel(char const* name, char const** strp)
 }
 
 
-/** ƒ}ƒNƒ–¼ name ‚ğ “à—e st ‚Å“o˜^‚·‚é.
- * st‚ªNULL‚È‚ç‚Î CƒRƒ“ƒpƒCƒ‰‚Ì -Dd—l‚Åname’†‚É=‚ª‚ ‚ê‚Î‚»‚êˆÈ~‚Ì•¶š—ñ‚ğA‚Å‚È‚¯‚ê‚Î"1"‚ğİ’è‚·‚é
+/** ãƒã‚¯ãƒ­å name ã‚’ å†…å®¹ st ã§ç™»éŒ²ã™ã‚‹.
+ * stãŒNULLãªã‚‰ã° Cã‚³ãƒ³ãƒ‘ã‚¤ãƒ©ã® -Dä»•æ§˜ã§nameä¸­ã«=ãŒã‚ã‚Œã°ãã‚Œä»¥é™ã®æ–‡å­—åˆ—ã‚’ã€ã§ãªã‘ã‚Œã°"1"ã‚’è¨­å®šã™ã‚‹
  */
 int Filn_SetLabel(char const* name, char const* st)
 {
@@ -4534,7 +4678,7 @@ int Filn_SetLabel(char const* name, char const* st)
 }
 
 
-/** –¼‘O s ‚ğ undef ‚·‚é
+/** åå‰ s ã‚’ undef ã™ã‚‹
  */
 int Filn_UndefLabel(char const* s)
 {
@@ -4542,69 +4686,3 @@ int Filn_UndefLabel(char const* s)
     return 1;
 }
 
-
-
-
-/*--------------------------------------------------------------------------*/
-/*•Õ—ğ
-
-1996 t
-        ©ìƒAƒZƒ“ƒuƒ‰ƒvƒŠƒvƒƒZƒbƒT—p‚Ìƒ}ƒNƒˆ—ƒ‹[ƒ`ƒ“‚ÌƒfƒoƒbƒO‚ğ
-        ‚©‚Ë‚Ä cpp ‚à‚Ç‚«‚Æ‚µ‚Äì¬.
-        watcom-c386 ‚ÅƒRƒ“ƒpƒCƒ‹
-
-1996 ‰Ä
-        •nã‚È68kƒAƒZƒ“ƒuƒ‰‚Ì‚½‚ß‚Ì‰ü‘¢‚ğ­X.
-        ƒ}ƒNƒŠJn•¶š‚ğ # ˆÈŠO‚É‚Å‚«‚é‚æ‚¤‚É.
-
-1997-09-27
-        bcc32 ‚ÅƒRƒ“ƒpƒCƒ‹‚µ‚½‚ç—‚¿‚Ü‚­‚é‚Ì‚Å, C³.
-        ‚»‚Ì‘¼×X‚µ‚½ƒoƒO‚Æ‚è•d—l•ÏX’Ç‰Á.
-        ’è‹`ƒtƒ@ƒCƒ‹(.cfg)“Ç‚İ‚İ‚ğ‰Â”\‚ÉB
-        defined() ‚Í#s‚Å‚Ì‚İ—LŒø‚Æ‚µ(ansi-cpp‚É‡‚í‚¹‚é)A#defined() ‚Å
-        ‚Ç‚±‚Å‚àg‚¦‚é‚±‚Æ‚É‚µ‚½.
-        ƒRƒƒ“ƒgŠJn•¶šw’è -pe -pet ‚ğw’è‚Å‚«‚é‚æ‚¤‚É‚µ‚½.
-        68ŒnƒAƒZƒ“ƒuƒ‰—p‚É -prq,prd ‚ğw’è‚Å‚«‚é‚æ‚¤‚É‚µ‚½.
-        -pŠÖŒW‚ÌƒIƒvƒVƒ‡ƒ“Eƒwƒ‹ƒv‚ğ•ª—£‚µŒ»İ‚Ìİ’è‚à•\¦‚·‚é‚æ‚¤‚É•ÏX.
-        ƒhƒLƒ…ƒƒ“ƒg‘‚«.
-
-1998-12-09
-        #if 0 ` #endif ’†‚Å‚à #–½—ß‚ªˆ—‚³‚ê‚Ä‚µ‚Ü‚¢A#define‚È‚Ç‚ª
-        ƒGƒ‰[‚É‚È‚Á‚½‚Ì‚ğC³B
-        ƒ}ƒNƒ“WŠJ‚ª‚¨‚©‚µ‚¢‚Ì‚ğˆê•”C³.
-        ‚ªAƒ}ƒNƒˆø”‚Ìˆ—‚ª‚¨‚©‚µ‚­Aƒ}ƒNƒ’†‚É‘¼‚Ìƒ}ƒNƒ‚ğ—p‚¢A
-        ‚»‚Ìˆø”‚Ì’è‹`–¼‚ª“¯‚¶‚Æ‚«A“à‘¤‚Ìƒ}ƒNƒ‚Ì“WŠJ‚ÅŠO‘¤‚Ìƒ}ƒNƒ‚Ì
-        ˆø”‚ªg‚í‚ê‚Ä‚µ‚Ü‚¤‚Æ‚¢‚¤ƒoƒO‚ªc‚Á‚Ä‚¢‚é.
-
-1998-12-19
-        ƒ}ƒNƒ‚Æˆø”‚Ì“WŠJ‚Ì‡”Ô‚ª‚¨‚©‚µ‚¢‚Ì‚ğ’¼‚·B‚Æ‚è‚ ‚¦‚¸A’Òåë‚Í
-        ‚ ‚Á‚½i‚Æv‚¤...)
-        #defined(),><‰‰Zq‚Ì”p~.
-        '•¶š—ñ', "•¶š—ñ" ‚Ìˆµ‚¢‚ğ –³Œø‰»‚·‚é•Ï”‚ğ•t‰Á
-
-        ƒOƒ[ƒoƒ‹•Ï”‚ğ‚·‚×‚Ä\‘¢‘Ì‚É‚Ü‚Æ‚ß‚È‚¨‚·B‚Ü‚½AƒvƒŒƒtƒBƒbƒNƒX
-        ‚ğFILN ‚Å‚È‚­ Filn ‚É‚·‚éB
-        FILN_GetsMac ‚Í Filn_Gets‚É•ÏX.
-        Filn_ErrOpen/ErrClose, Filn_WrtOpen/WrtClose, Filn_printf‚ğ•t‰Á
-        ‚µ‚Ä—˜—p‚µ‚â‚·‚­‚µ‚½.
-
-2000-09-19
-        #endif ‚ÌƒlƒXƒgƒ`ƒFƒbƒN‚ğƒ~ƒX‚µ‚Ä‚¨‚èA#ifŠÖŒW‚Ì‹““®‚ª‚¨‚©‚µ‚©‚Á‚½
-        ‚Ì‚ğC³B
-        ‘¼‚Å—¬—p‚µ‚â‚·‚¢‚æ‚¤‚ÉA•W€ƒ‰ƒCƒuƒ‰ƒŠƒwƒbƒ_‚ÆAfiln.h‚µ‚©
-        “Ç‚Ü‚È‚¢‚Å‚·‚Ş‚æ‚¤‚É•ÏXB
-
-2000-09-20
-        Œ³ƒ\[ƒX‚ÌƒRƒƒ“ƒgo—Íi‚Ü‚½‚Íƒtƒ@ƒCƒ‹–¼s”Ô†)‚ğA‚â‚ßA“ü—Í•¶š—ñ
-        ‚É‚È‚é‚æ‚¤‚É•ÏXB‚»‚Ì“s‡AFiln_Gets() ‚Ímalloc‚µ‚½ƒƒ‚ƒŠ‚ğ•Ô‚µA
-        ŠJ•ú‚ÍŒÄ‚Ño‚µ‘¤‚É”C‚·‚±‚Æ‚É‚µA‚Ü‚½A‰üs'\n'‚ÍŠO‚³‚¸•t‚¯‚Ä•Ô‚·‚æ‚¤‚É‚µ‚½B
-        Filn_WrtOpen/WrtClose, Filn_printf‚ğ”p~B
-        ƒGƒ‰[o—Í‚ğ•W€o—Í‚Å‚È‚­A•W€ƒGƒ‰[o—Í‚ÉB
-        #include <file> ‚ğ c ‚Æ“¯—l‚ÌŒŸõ‡‚É•ÏXB
-        include ƒpƒX‚ğ;‚Å‹æØ‚Á‚Ä•¡”‚ğˆê“x‚Éw’è‰Â”\‚ÉB
-        M_Expr0 ‚Ìƒg[ƒNƒ“‚Ìæ‚èŠÔˆá‚¢‚ª‚ ‚Á‚½‚Ì‚ğC³i“–‘RA#if‚ÌŒ‹‰Ê‚à‚¨‚©‚µ‚­‚È‚éj
-
-2017-08-12
-        ®‚Ì’l‚ğ long long ‚É•ÏX. ƒ|ƒCƒ“ƒ^‚ğ‰Â”\‚È‚çconst‚É•ÏX. utf-8‘Î‰
-        ƒƒ‚ƒŠ‰ğ•ú˜R‚ê‚ÌC³
-*/

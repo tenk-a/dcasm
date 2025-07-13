@@ -28,7 +28,7 @@ char* StrSkipSpc(char const* s)
 }
 
 
-/* ‘SŠp‘Î‰‚ÌStrSkipSpc
+/* å…¨è§’å¯¾å¿œã®StrSkipSpc
  */
 char* StrSkipSpc2(char const* s)
 {
@@ -154,7 +154,7 @@ char *FIL_DirNameAddExt(char *nam, char *dir, char *name, char *addext)
 }
 
 
-/*--------------------- ƒGƒ‰[ˆ—•t‚«‚Ì•W€ŠÖ” ---------------------------*/
+/*--------------------- ã‚¨ãƒ©ãƒ¼å‡¦ç†ä»˜ãã®æ¨™æº–é–¢æ•° ---------------------------*/
 volatile void err_exit(char const* fmt, ...)
 {
     va_list app;
@@ -181,7 +181,7 @@ int err_printf(char const* fmt, ...)
 
 
 
-/* ƒGƒ‰[‚ª‚ ‚ê‚Î‘¦exit‚Ì malloc() */
+/* ã‚¨ãƒ©ãƒ¼ãŒã‚ã‚Œã°å³exitã® malloc() */
 void *mallocE(size_t a)
 {
     void *p;
@@ -192,12 +192,12 @@ void *mallocE(size_t a)
     p = malloc(a);
 //printf("malloc(0x%x)\n",a);
     if (p == NULL) {
-        err_exit("ƒƒ‚ƒŠ‚ª‘«‚è‚È‚¢(%d byte(s))\n",a);
+        err_exit("ãƒ¡ãƒ¢ãƒªãŒè¶³ã‚Šãªã„(%d byte(s))\n",a);
     }
     return p;
 }
 
-/* ƒGƒ‰[‚ª‚ ‚ê‚Î‘¦exit‚Ì calloc() */
+/* ã‚¨ãƒ©ãƒ¼ãŒã‚ã‚Œã°å³exitã® calloc() */
 void *callocE(size_t a, size_t b)
 {
     void *p;
@@ -209,12 +209,12 @@ void *callocE(size_t a, size_t b)
     p = calloc(a,b);
 //printf("calloc(0x%x,0x%x)\n",a,b);
     if (p == NULL) {
-        err_exit("ƒƒ‚ƒŠ‚ª‘«‚è‚È‚¢(%d*%d byte(s))\n",a,b);
+        err_exit("ãƒ¡ãƒ¢ãƒªãŒè¶³ã‚Šãªã„(%d*%d byte(s))\n",a,b);
     }
     return p;
 }
 
-/* ƒGƒ‰[‚ª‚ ‚ê‚Î‘¦exit‚Ì calloc() */
+/* ã‚¨ãƒ©ãƒ¼ãŒã‚ã‚Œã°å³exitã® calloc() */
 void *reallocE(void *m, size_t a)
 {
     void *p;
@@ -223,12 +223,12 @@ void *reallocE(void *m, size_t a)
     p = realloc(m, a);
 //printf("realloc(0x%x,0x%x)\n",m,a);
     if (p == NULL) {
-        err_exit("ƒƒ‚ƒŠ‚ª‘«‚è‚È‚¢(%d byte(s))\n",a);
+        err_exit("ãƒ¡ãƒ¢ãƒªãŒè¶³ã‚Šãªã„(%d byte(s))\n",a);
     }
     return p;
 }
 
-/* ƒGƒ‰[‚ª‚ ‚ê‚Î‘¦exit‚Ì strdup() */
+/* ã‚¨ãƒ©ãƒ¼ãŒã‚ã‚Œã°å³exitã® strdup() */
 char *strdupE(char const* s)
 {
     char *p;
@@ -242,7 +242,7 @@ char *strdupE(char const* s)
     p = strdup(s);
   #endif
     if (p == NULL) {
-        err_exit("ƒƒ‚ƒŠ‚ª‘«‚è‚È‚¢(’·‚³%d+1)\n",strlen(s));
+        err_exit("ãƒ¡ãƒ¢ãƒªãŒè¶³ã‚Šãªã„(é•·ã•%d+1)\n",strlen(s));
     }
     return p;
 }
@@ -255,45 +255,45 @@ int freeE(void *p)
 }
 
 /* ------------------------------------------------------------------------ */
-/* ƒGƒ‰[‚ª‚ ‚ê‚Î‘¦exit‚Ì fopen() */
+/* ã‚¨ãƒ©ãƒ¼ãŒã‚ã‚Œã°å³exitã® fopen() */
 FILE *fopenE(char const* name, char const* mod)
 {
     FILE*   fp;
     fp = fopen(name,mod);
     if (fp == NULL) {
-        err_exit("ƒtƒ@ƒCƒ‹ %s ‚ğƒI[ƒvƒ“‚Å‚«‚Ü‚¹‚ñ\n",name);
+        err_exit("ãƒ•ã‚¡ã‚¤ãƒ« %s ã‚’ã‚ªãƒ¼ãƒ—ãƒ³ã§ãã¾ã›ã‚“\n",name);
     }
     setvbuf(fp, NULL, _IOFBF, 1024*1024);
     return fp;
 }
 
-/* ƒGƒ‰[‚ª‚ ‚ê‚Î‘¦exit‚Ì fwrite() */
+/* ã‚¨ãƒ©ãƒ¼ãŒã‚ã‚Œã°å³exitã® fwrite() */
 size_t  fwriteE(void *buf, size_t sz, size_t num, FILE *fp)
 {
     size_t l;
 
     l = fwrite(buf, sz, num, fp);
     if (ferror(fp)) {
-        err_exit("ƒtƒ@ƒCƒ‹‘‚İ‚ÅƒGƒ‰[”­¶\n");
+        err_exit("ãƒ•ã‚¡ã‚¤ãƒ«æ›¸è¾¼ã¿ã§ã‚¨ãƒ©ãƒ¼ç™ºç”Ÿ\n");
     }
     return l;
 }
 
-/* ƒGƒ‰[‚ª‚ ‚ê‚Î‘¦exit‚Ì fread() */
+/* ã‚¨ãƒ©ãƒ¼ãŒã‚ã‚Œã°å³exitã® fread() */
 size_t  freadE(void *buf, size_t sz, size_t num, FILE *fp)
 {
     size_t l;
 
     l = fread(buf, sz, num, fp);
     if (ferror(fp)) {
-        err_exit("ƒtƒ@ƒCƒ‹“Ç‚İ‚ÅƒGƒ‰[”­¶\n");
+        err_exit("ãƒ•ã‚¡ã‚¤ãƒ«èª­è¾¼ã¿ã§ã‚¨ãƒ©ãƒ¼ç™ºç”Ÿ\n");
     }
     return l;
 }
 
 /* ------------------------------------------------------------------------ */
 
-/* fp‚æ‚è 1ƒoƒCƒg(0..255) “Ç‚İ‚Ş. ƒGƒ‰[‚ª‚ ‚ê‚Î‘¦I—¹ */
+/* fpã‚ˆã‚Š 1ãƒã‚¤ãƒˆ(0..255) èª­ã¿è¾¼ã‚€. ã‚¨ãƒ©ãƒ¼ãŒã‚ã‚Œã°å³çµ‚äº† */
 int fgetcE(FILE *fp)
 {
   #if 1
@@ -304,13 +304,13 @@ int fgetcE(FILE *fp)
     int c;
     c = fgetc(fp);
     if (c == EOF) {
-        err_exit("ƒtƒ@ƒCƒ‹“Ç‚İ‚İ‚ÅƒGƒ‰[”­¶\n");
+        err_exit("ãƒ•ã‚¡ã‚¤ãƒ«èª­ã¿è¾¼ã¿ã§ã‚¨ãƒ©ãƒ¼ç™ºç”Ÿ\n");
     }
     return (uint8_t)c;
   #endif
 }
 
-/* fp‚æ‚è ØÄÙ´İÃŞ¨±İ‚Å 2ƒoƒCƒg“Ç‚İ‚Ş. ƒGƒ‰[‚ª‚ ‚ê‚Î‘¦I—¹ */
+/* fpã‚ˆã‚Š ï¾˜ï¾„ï¾™ï½´ï¾ï¾ƒï¾ï½¨ï½±ï¾ã§ 2ãƒã‚¤ãƒˆèª­ã¿è¾¼ã‚€. ã‚¨ãƒ©ãƒ¼ãŒã‚ã‚Œã°å³çµ‚äº† */
 int fgetc2iE(FILE *fp)
 {
     int c;
@@ -318,7 +318,7 @@ int fgetc2iE(FILE *fp)
     return (uint16_t)(c | (fgetcE(fp)<<8));
 }
 
-/* fp‚æ‚è ØÄÙ´İÃŞ¨±İ‚Å 4ƒoƒCƒg“Ç‚İ‚Ş. ƒGƒ‰[‚ª‚ ‚ê‚Î‘¦I—¹ */
+/* fpã‚ˆã‚Š ï¾˜ï¾„ï¾™ï½´ï¾ï¾ƒï¾ï½¨ï½±ï¾ã§ 4ãƒã‚¤ãƒˆèª­ã¿è¾¼ã‚€. ã‚¨ãƒ©ãƒ¼ãŒã‚ã‚Œã°å³çµ‚äº† */
 int fgetc4iE(FILE *fp)
 {
     int c;
@@ -326,7 +326,7 @@ int fgetc4iE(FILE *fp)
     return c + (fgetc2iE(fp)<<16);
 }
 
-/* fp‚æ‚è big´İÃŞ¨±İ‚Å 2ƒoƒCƒg“Ç‚İ‚Ş. ƒGƒ‰[‚ª‚ ‚ê‚Î‘¦I—¹ */
+/* fpã‚ˆã‚Š bigï½´ï¾ï¾ƒï¾ï½¨ï½±ï¾ã§ 2ãƒã‚¤ãƒˆèª­ã¿è¾¼ã‚€. ã‚¨ãƒ©ãƒ¼ãŒã‚ã‚Œã°å³çµ‚äº† */
 int fgetc2mE(FILE *fp)
 {
     int c;
@@ -334,7 +334,7 @@ int fgetc2mE(FILE *fp)
     return (uint16_t)((c<<8) | fgetcE(fp));
 }
 
-/* fp‚æ‚è big´İÃŞ¨±İ‚Å 4ƒoƒCƒg“Ç‚İ‚Ş. ƒGƒ‰[‚ª‚ ‚ê‚Î‘¦I—¹ */
+/* fpã‚ˆã‚Š bigï½´ï¾ï¾ƒï¾ï½¨ï½±ï¾ã§ 4ãƒã‚¤ãƒˆèª­ã¿è¾¼ã‚€. ã‚¨ãƒ©ãƒ¼ãŒã‚ã‚Œã°å³çµ‚äº† */
 int fgetc4mE(FILE *fp)
 {
     int c;
@@ -342,7 +342,7 @@ int fgetc4mE(FILE *fp)
     return (c<<16) | fgetc2mE(fp);
 }
 
-/* fp‚É 1ƒoƒCƒg(0..255) ‘‚«‚Ş. ƒGƒ‰[‚ª‚ ‚ê‚Î‘¦I—¹ */
+/* fpã« 1ãƒã‚¤ãƒˆ(0..255) æ›¸ãè¾¼ã‚€. ã‚¨ãƒ©ãƒ¼ãŒã‚ã‚Œã°å³çµ‚äº† */
 void fputcE(int c, FILE *fp)
 {
     uint8_t buf[1];
@@ -350,7 +350,7 @@ void fputcE(int c, FILE *fp)
     fwriteE(buf, 1, 1, fp);
 }
 
-/* fp‚É ËŞ¯¸Ş´İÃŞ¨±İ‚Å 2ƒoƒCƒg‘‚«‚Ş. ƒGƒ‰[‚ª‚ ‚ê‚Î‘¦I—¹ */
+/* fpã« ï¾‹ï¾ï½¯ï½¸ï¾ï½´ï¾ï¾ƒï¾ï½¨ï½±ï¾ã§ 2ãƒã‚¤ãƒˆæ›¸ãè¾¼ã‚€. ã‚¨ãƒ©ãƒ¼ãŒã‚ã‚Œã°å³çµ‚äº† */
 void fputc2mE(int c, FILE *fp)
 {
     uint8_t buf[4];
@@ -359,7 +359,7 @@ void fputc2mE(int c, FILE *fp)
     fwriteE(buf, 1, 2, fp);
 }
 
-/* fp‚É ËŞ¯¸Ş´İÃŞ¨±İ‚Å 4ƒoƒCƒg‘‚«‚Ş. ƒGƒ‰[‚ª‚ ‚ê‚Î‘¦I—¹ */
+/* fpã« ï¾‹ï¾ï½¯ï½¸ï¾ï½´ï¾ï¾ƒï¾ï½¨ï½±ï¾ã§ 4ãƒã‚¤ãƒˆæ›¸ãè¾¼ã‚€. ã‚¨ãƒ©ãƒ¼ãŒã‚ã‚Œã°å³çµ‚äº† */
 void fputc4mE(int c, FILE *fp)
 {
     uint8_t buf[4];
@@ -378,7 +378,7 @@ void *fputsE(char *s, FILE *fp)
     return s;
 }
 
-/* fp‚É ØÄÙ´İÃŞ¨±İ‚Å 2ƒoƒCƒg‘‚«‚Ş. ƒGƒ‰[‚ª‚ ‚ê‚Î‘¦I—¹ */
+/* fpã« ï¾˜ï¾„ï¾™ï½´ï¾ï¾ƒï¾ï½¨ï½±ï¾ã§ 2ãƒã‚¤ãƒˆæ›¸ãè¾¼ã‚€. ã‚¨ãƒ©ãƒ¼ãŒã‚ã‚Œã°å³çµ‚äº† */
 void fputc2iE(int c, FILE *fp)
 {
     uint8_t buf[4];
@@ -387,7 +387,7 @@ void fputc2iE(int c, FILE *fp)
     fwriteE(buf, 1, 2, fp);
 }
 
-/* fp‚É ØÄÙ´İÃŞ¨±İ‚Å 4ƒoƒCƒg‘‚«‚Ş. ƒGƒ‰[‚ª‚ ‚ê‚Î‘¦I—¹ */
+/* fpã« ï¾˜ï¾„ï¾™ï½´ï¾ï¾ƒï¾ï½¨ï½±ï¾ã§ 4ãƒã‚¤ãƒˆæ›¸ãè¾¼ã‚€. ã‚¨ãƒ©ãƒ¼ãŒã‚ã‚Œã°å³çµ‚äº† */
 void fputc4iE(int c, FILE *fp)
 {
     uint8_t buf[4];
@@ -415,7 +415,7 @@ int FIL_GetTmpDir(char *t)
               #if 0
                 p = ".\\";
               #else
-                err_exit("ŠÂ‹«•Ï”TMP‚©TEMP‚Åƒeƒ“ƒ|ƒ‰ƒŠEƒfƒBƒŒƒNƒgƒŠ‚ğw’è‚µ‚Ä‚­‚¾‚³‚¢\n");
+                err_exit("ç’°å¢ƒå¤‰æ•°TMPã‹TEMPã§ãƒ†ãƒ³ãƒãƒ©ãƒªãƒ»ãƒ‡ã‚£ãƒ¬ã‚¯ãƒˆãƒªã‚’æŒ‡å®šã—ã¦ãã ã•ã„\n");
               #endif
             }
         }
@@ -627,10 +627,10 @@ STBL_CMP STBL_SetFncCmp(STBL_CMP cmp)
 }
 
 /*
- *  t     : •¶š—ñ‚Ö‚Ìƒ|ƒCƒ“ƒ^‚ğ‚¨‚³‚ß‚½”z—ñ
- *  tblcnt: “o˜^ÏŒÂ”
- *  key   : ’Ç‰Á‚·‚é•¶š—ñ
- *  •œ‹A’l: 0:’Ç‰Á -1:‚·‚Å‚É“o˜^Ï
+ *  t     : æ–‡å­—åˆ—ã¸ã®ãƒã‚¤ãƒ³ã‚¿ã‚’ãŠã•ã‚ãŸé…åˆ—
+ *  tblcnt: ç™»éŒ²æ¸ˆå€‹æ•°
+ *  key   : è¿½åŠ ã™ã‚‹æ–‡å­—åˆ—
+ *  å¾©å¸°å€¤: 0:è¿½åŠ  -1:ã™ã§ã«ç™»éŒ²æ¸ˆ
  */
 int STBL_Add(void const* t[], int* tblcnt, void const* key)
 {
@@ -646,7 +646,7 @@ int STBL_Add(void const* t[], int* tblcnt, void const* key)
             mid++;
             low = mid;
         } else {
-            return -1;  /* “¯‚¶‚à‚Ì‚ª‚İ‚Â‚©‚Á‚½‚Ì‚Å’Ç‰Á‚µ‚È‚¢ */
+            return -1;  /* åŒã˜ã‚‚ã®ãŒã¿ã¤ã‹ã£ãŸã®ã§è¿½åŠ ã—ãªã„ */
         }
     }
     (*tblcnt)++;
@@ -658,10 +658,10 @@ int STBL_Add(void const* t[], int* tblcnt, void const* key)
 }
 
 /*
- *  key:‚³‚ª‚·•¶š—ñ‚Ö‚Ìƒ|ƒCƒ“ƒ^
- *  tbl:•¶š—ñ‚Ö‚Ìƒ|ƒCƒ“ƒ^‚ğ‚¨‚³‚ß‚½”z—ñ
- *  nn:”z—ñ‚ÌƒTƒCƒY
- *  •œ‹A’l:Œ©‚Â‚©‚Á‚½•¶š—ñ‚Ì”Ô†(0‚æ‚è)  ‚İ‚Â‚©‚ç‚È‚©‚Á‚½‚Æ‚«-1
+ *  key:ã•ãŒã™æ–‡å­—åˆ—ã¸ã®ãƒã‚¤ãƒ³ã‚¿
+ *  tbl:æ–‡å­—åˆ—ã¸ã®ãƒã‚¤ãƒ³ã‚¿ã‚’ãŠã•ã‚ãŸé…åˆ—
+ *  nn:é…åˆ—ã®ã‚µã‚¤ã‚º
+ *  å¾©å¸°å€¤:è¦‹ã¤ã‹ã£ãŸæ–‡å­—åˆ—ã®ç•ªå·(0ã‚ˆã‚Š)  ã¿ã¤ã‹ã‚‰ãªã‹ã£ãŸã¨ã-1
  */
 int STBL_Search(void const* const tbl[], int nn, void const* key)
 {

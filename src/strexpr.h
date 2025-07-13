@@ -1,6 +1,6 @@
 /**
  *  @file   strexpr.h
- *  @brief  ®•¶š—ñ‚ğŒvZ
+ *  @brief  å¼æ–‡å­—åˆ—ã‚’è¨ˆç®—
  *  @author Masashi KITAMURA (tenka@6809.net)
  *  @date   1996-2017
  *  @note
@@ -20,7 +20,7 @@ typedef int64_t     strexpr_val_t;
 int  StrExpr(char const *s, char const** s_nxt, strexpr_val_t* val);
 
 void StrExpr_SetNameChkFunc(int (*name2valFnc)(char const* name, strexpr_val_t* valp));
-    /* name2valFnc ‚ÍA–¼‘O‚ª“n‚³‚êA³í‚È‚ç0‚ğ•Ô‚µ‚»‚Ì–¼‘O‚Ì’l‚ğ *valp‚É‚¢‚ê‚é. ˆÙí‚È‚ç-1‚ğ•Ô‚·ŠÖ”‚ğİ’è‚·‚é‚±‚Æ */
+    /* name2valFnc ã¯ã€åå‰ãŒæ¸¡ã•ã‚Œã€æ­£å¸¸ãªã‚‰0ã‚’è¿”ã—ãã®åå‰ã®å€¤ã‚’ *valpã«ã„ã‚Œã‚‹. ç•°å¸¸ãªã‚‰-1ã‚’è¿”ã™é–¢æ•°ã‚’è¨­å®šã™ã‚‹ã“ã¨ */
 
 void StrExpr_SetMbcMode(int mode);
 

@@ -1,187 +1,170 @@
-/**
+/*
  *  @file   mbc.h
- *  @brief  マルチバイト文字の処理.
- *  @author Masashi KITAMURA (tenka@6809.net)
- *  @note
- *   -  utf8対応.
- *   -  2バイトコードは、winでは基本、api任せ.
- *   -  win-api以外では SJIS,EUC-JP,EUC(基本部分),BIG5,GBK(gb18030)を考慮.
- *   -  半角全角を想定した表示の桁数を指定可能に(かなり大雑把).(Width)
- *   -  ライセンス
- *      Boost Software License Version 1.0
+ *  @brief  Multi Byte Character lib.
+ *  @author Masashi Kitamura (tenka@6809.net)
+ *  @license Boost Software Lisence Version 1.0
  */
-#ifndef MBC_H_INCLUDE
-#define MBC_H_INCLUDE
-
-#define MBC_USE_DEFAULT_ENV
+#ifndef MBC_H_INCLUDED__
+#define MBC_H_INCLUDED__
 
 #include <stddef.h>
-#include <assert.h>
+#include <stdint.h>
+#include <string.h>
 
-
-#if !defined(inline) && !defined(__cplusplus) && (__STDC_VERSION__ < 199901L)
-#define inline      __inline
+#if 1 //!defined(MBC_USE_JIS_CONV) && !defined(MBC_UNUSE_MBC_JIS)
+#define MBC_USE_JIS_CONV
+//#define MBC_USE_X213_SJIS_EUCJP
 #endif
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
+// code page (win)
+typedef enum mbc_cp_t {
+    MBC_CP_NONE     =     0,
+    MBC_CP_UTF8     = 65001,
+    MBC_CP_UTF16LE  =  1200,
+    MBC_CP_UTF16BE  =  1201,
+    MBC_CP_UTF32LE  = 12000,
+    MBC_CP_UTF32BE  = 12001,
+    MBC_CP_1BYTE    =   437/*kari*/,
+    MBC_CP_SJIS     =   932,
+    MBC_CP_EUCJP    = 51932/*20932*/,
+ #ifdef _WIN32
+    MBC_CP_DBC      =     1,
+ #endif
+} mbc_cp_t;
 
-typedef struct Mbc_Env {
-    unsigned (*isLead)(unsigned c);                         // Cがマルチバイト文字の1バイト目か?
-    unsigned (*chkC)(unsigned c);
-    unsigned (*getC)(const char** str);                     // 1字取り出し＆ポインタ更新.
-    unsigned (*peekC)(const char* str);                     // 一字取り出し
-    char*    (*setC)(char*  dst, unsigned c);               // 1字書き込み.
-    unsigned (*len1)(const char* pChr);                     // 1文字のchar数を返す.
-    unsigned (*chrLen)(unsigned chr);                       // 1文字のchar数を返す.
-    unsigned (*chrWidth)(unsigned chr);                     // 半角全角を考慮して文字の幅を返す.
-    //size_t (*adjust_size)(const char* s, unsigned size);  // 半角全角を考慮して文字の幅を返す.
+typedef struct mbc_enc_st {
+    mbc_cp_t  cp;
+    unsigned (*isLead)(unsigned c);
+    unsigned (*checkChr)(unsigned c);
+    unsigned (*getChr)(char const** str);
+    unsigned (*peekChr)(char const* str);
+    char*    (*chrNext)(char const* str);
+    char*    (*setChr)(char* dst, char* e, unsigned c);
+    unsigned (*len1)(char const* pChr);
+    unsigned (*chrBytes)(unsigned chr);
+    unsigned (*chrWidth)(unsigned chr);
+    size_t   (*adjustSize)(char const* str, size_t size);
+    int      (*cmp)(char const* lp, char const* rp);
+    int      (*checkEncoding)(char const* str, size_t size, int lastBrokenOk);
+} mbc_enc_st;
 
-  #ifdef __cplusplus    //気力があれば、関数ポインタ化.
-    char*    inc   (const char* str)     const { return (char*)str + this->len1(str) ; }
-    void     putc  (char** d,unsigned c) const { *d = this->setC(*d, c); }
+typedef struct mbc_enc_st const* mbc_enc_t;
 
-    size_t   strLen(const char* src) const;
-    size_t   adjust_size(const char* src, size_t sz) const;
-    size_t   sizeToWidth(const char* str, size_t size) const ;
-    size_t   sizeToChrs (const char* str, size_t size) const ;
-    size_t   chrsToWidth(const char* str, size_t chrs) const ;
-    size_t   chrsToSize (const char* str, size_t chrs) const ;
-    size_t   widthToSize(const char* str, size_t width) const ;
-    size_t   widthToChrs(const char* str, size_t width) const ;
-    char*    cpy(char dst[], size_t size, const char* src) const ;
-    char*    cat(char dst[], size_t size, const char* src) const ;
-    char*    cpyNC(char dst[], size_t size, const char* src, size_t nc) const ;
-    char*    catNC(char dst[], size_t size, const char* src, size_t nc) const ;
-    char*    cpyWidth(char dst[], size_t size, const char* src, size_t width) const ;
-    char*    catWidth(char dst[], size_t size, const char* src, size_t width) const ;
-  #endif
-} Mbc_Env;
+extern mbc_enc_t const   mbc_enc_utf8;
+extern mbc_enc_t const   mbc_enc_utf16le;
+extern mbc_enc_t const   mbc_enc_utf16be;
+extern mbc_enc_t const   mbc_enc_utf32le;
+extern mbc_enc_t const   mbc_enc_utf32be;
+extern mbc_enc_t const   mbc_enc_asc;
+
+extern mbc_enc_t const   mbc_enc_cp932;
+extern mbc_enc_t const   mbc_enc_eucjp;
+
+#ifdef _WIN32
+extern mbc_enc_t const   mbc_enc_dbc;
+#endif
+
+static inline mbc_cp_t mbc_encCP(mbc_enc_t mbc) { return mbc->cp; }
+static inline unsigned mbc_isLead(mbc_enc_t mbc, unsigned c) { return mbc->isLead(c); }
+static inline unsigned mbc_checkChr(mbc_enc_t mbc, unsigned c) { return mbc->checkChr(c); }
+static inline unsigned mbc_getChr(mbc_enc_t mbc, char const** s) { return mbc->getChr(s); }
+static inline unsigned mbc_peekChr(mbc_enc_t mbc, char const* s) { return mbc->peekChr(s); }
+static inline char*    mbc_strChrNext(mbc_enc_t mbc, char const* s) { return mbc->chrNext(s); }
+static inline char*    mbc_strSetChr(mbc_enc_t mbc, char* dst, char* e, unsigned c) { return mbc->setChr(dst, e, c); }
+static inline unsigned mbc_strLen1(mbc_enc_t mbc, char const* s) { return mbc->len1(s); }
+static inline unsigned mbc_chrBytes(mbc_enc_t mbc, unsigned c) { return mbc->chrBytes(c); }
+static inline unsigned mbc_chrWidth(mbc_enc_t mbc, unsigned c) { return mbc->chrWidth(c); }
+static inline size_t   mbc_strAdjustSize(mbc_enc_t mbc, char const* s, size_t sz) { return mbc->adjustSize(s, sz); }
+static inline int      mbc_strCmp(mbc_enc_t mbc, char const* l, char const* r) { return mbc->cmp(l, r); }
+
+mbc_enc_t mbc_cpToEnc(mbc_cp_t cp);
+int     mbc_checkEnc(mbc_enc_t mbc, char const* str, size_t size, int lastBrokenOk);
+size_t  mbc_strChrsToBytes( mbc_enc_t mbc, char const* str, size_t chrs);
+size_t  mbc_strBytesToChrs( mbc_enc_t mbc, char const* str, size_t size);
+size_t  mbc_strBytesToWidth(mbc_enc_t mbc, char const* str, size_t size);
+size_t  mbc_strChrsToWidth( mbc_enc_t mbc, char const* str, size_t chrs);
+size_t  mbc_strWidthToBytes(mbc_enc_t mbc, char const* str, size_t width);
+size_t  mbc_strWidthToChrs( mbc_enc_t mbc, char const* str, size_t width);
+size_t  mbc_strCpy(  mbc_enc_t mbc, char dst[], size_t dstSz,char const* src);
+size_t  mbc_strLCpy( mbc_enc_t mbc, char dst[], size_t dstSz, char const* src, size_t l);
+size_t  mbc_strCat(  mbc_enc_t mbc, char dst[], size_t dstSz, char const* src);
+size_t  mbc_strCpyNC(mbc_enc_t mbc, char dst[], size_t dstSz, char const* src, size_t nc);
+size_t  mbc_strCatNC(mbc_enc_t mbc, char dst[], size_t dstSz, char const* src, size_t nc);
+size_t  mbc_strCpyWidth(mbc_enc_t mbc, char dst[], size_t dstSz, char const* src, size_t width);
+size_t  mbc_strCatWidth(mbc_enc_t mbc, char dst[], size_t dstSz, char const* src, size_t width);
+
+size_t  mbc_strCountCapa(mbc_enc_t dstMbc, mbc_enc_t srcMbc, char const* src, size_t srcSz);
+size_t  mbc_strConv(mbc_enc_t dstMbc, char dst[], size_t dstSz, mbc_enc_t srcMbc, char const* src, size_t srcSz);
+size_t  mbc_strConvUnicode(mbc_enc_t dstMbc, char dst[], size_t dstSz, mbc_enc_t srcMbc, char const* src, size_t srcSz);
+
+/// 0:non 1:utf8-BOM 2:utf16le-BOM 3:utf16be-BOM 4:utf32le-BOM 5:utf32be-BOM
+mbc_enc_t mbc_checkUnicodeBOM(char const* src, size_t len);
+unsigned  mbc_checkUnicodeBOMi(char const* src, size_t len);
+unsigned  mbc_getBOMbytes(char const* src, size_t len);
+int       mbc_cpToUnicodeIdx(mbc_cp_t cp);
+static inline int mbc_cpIsUnicode(mbc_cp_t cp) { return mbc_cpToUnicodeIdx(cp) > 0; }
 
 #ifdef __cplusplus
-#define MBC_INL     inline
+mbc_enc_t mbc_autoEncodeCheck(char const* src, size_t len, int brokenEndChOk = 1, mbc_enc_t const * tbl = 0, size_t tblN = 0);
+char*     mbc_strConvMalloc(mbc_enc_t dstMbc, mbc_enc_t srcMbc, char const* src, size_t srcSz, size_t* pDstSz = 0);
+int       mbc_checkUTF8(char const* src, size_t len, int lastBrokenOk = 1); ///< 0:not  1:ascii(<=7f) >=2:utf8
 #else
-#define MBC_INL     static inline
+mbc_enc_t mbc_autoEncodeCheck(char const* src, size_t len, int brokenEndChOk, mbc_enc_t const * tbl, size_t tblN);
+char*     mbc_strConvMalloc(mbc_enc_t dstMbc, mbc_enc_t srcMbc, char const* src, size_t srcSz, size_t* pDstSz);
+int       mbc_checkUTF8(char const* src, size_t len, int lastBrokenOk);     ///< 0:not  1:ascii(<=7f) >=2:utf8
 #endif
 
-const Mbc_Env*   mbc_env_create(const char* lang_enc);      // "ja_JP.SJIS等で環境設定. NULLでデフォルト取得.
-MBC_INL unsigned mbc_islead (const Mbc_Env* e, char c)              { return e->isLead(c) ; }
-MBC_INL unsigned mbc_getc   (const Mbc_Env* e, char const** ppStr)  { return e->getC(ppStr) ; }
-MBC_INL unsigned mbc_peekc  (const Mbc_Env* e, char const* str)     { return e->peekC(str); }
-MBC_INL char*    mbc_setc   (const Mbc_Env* e, char*  d,unsigned c) { return e->setC(d,c); }
-MBC_INL unsigned mbc_len1   (const Mbc_Env* e, char const* pChr)    { return e->len1(pChr); }
-MBC_INL unsigned mbc_chrLen (const Mbc_Env* e, unsigned chr)        { return e->chrLen(chr); }
-MBC_INL size_t   mbc_chrWidth(const Mbc_Env* e, unsigned chr)       { return e->chrWidth(chr); }
-
-MBC_INL char*   mbc_inc     (const Mbc_Env* e, const char* str)     { return (char*)str + e->len1(str) ; }
-MBC_INL void    mbc_putc    (const Mbc_Env* e, char** d,unsigned c) { *d = e->setC(*d, c); }
-
-MBC_INL size_t  mbc_raw_len(const char* s) { const char* p = s; assert(s); --p; do {} while (*++p); return p - s; }
-
-size_t          mbc_adjust_size(const Mbc_Env* e, const char* src, size_t sz);
-MBC_INL size_t  mbc_strLen  (const Mbc_Env* e, const char* src) { return mbc_adjust_size(e, src, ~(size_t)0); }
-
-size_t          mbc_sizeToWidth(const Mbc_Env* mbc, const char* str, size_t size);
-size_t          mbc_sizeToChrs(const Mbc_Env* mbc, const char* str, size_t size);
-size_t          mbc_chrsToSize(const Mbc_Env* mbc, const char* str, size_t chrs);
-size_t          mbc_chrsToWidth(const Mbc_Env* mbc, const char* str, size_t chrs);
-size_t          mbc_widthToSize(const Mbc_Env* mbc, const char* str, size_t width);
-size_t          mbc_widthToChrs(const Mbc_Env* mbc, const char* str, size_t width);
-
-char*           mbc_cpy(const Mbc_Env* e, char dst[], size_t size, const char* src);
-char*           mbc_cat(const Mbc_Env* e, char dst[], size_t size, const char* src);
-char*           mbc_cpyNC(const Mbc_Env* e, char dst[], size_t size, const char* src, size_t nchr);
-char*           mbc_catNC(const Mbc_Env* e, char dst[], size_t size, const char* src, size_t nchr);
-char*           mbc_cpyWidth(const Mbc_Env* e, char dst[], size_t size, const char* src, size_t width);
-char*           mbc_catWidth(const Mbc_Env* e, char dst[], size_t size, const char* src, size_t width);
-
-#if 0
-int             mbc_cmp(const Mbc_Env* e, const char* l, const char* r);
-
-int             mbc_l_cmp(const Mbc_Env* e, const char* l, unsigned llen, const char* r, unsigned rlen);
-int             mbc_l_casecmp(const Mbc_Env* e, const char* l, const char* r);
-
-char*           mbc_l_chr (const char* src, size_t len, unsigned chr);
-char*           mbc_l_rchr(const char* src, size_t len, unsigned chr);
-char*           mbc_l_not_chr (const char* src, size_t len, unsigned chr);
-char*           mbc_l_not_rchr(const char* src, size_t len, unsigned chr);
-
-char*           mbc_l_find (const char* src, size_t len, const char* k, size_t kn);
-char*           mbc_l_rfind(const char* src, size_t len, const char* k, size_t kn);
-size_t          mbc_l_first_of1(const C* src, size_t len, C c) { char t[2]={c,0}; mbc_first_of(a,an,t,1); }
-size_t          mbc_first_of      (const C* a, size_t an, size_t ofs, const C* t, size_t tn);
-size_t          mbc_last_of   (const C* a, size_t an, size_t ofs, C c);
-size_t          mbc_last_of   (const C* a, size_t an, size_t ofs, const C* t, size_t tn);
-size_t          mbc_first_not_of(const C* a, size_t an, size_t ofs, C c);
-size_t          fnd_first_not_of(const C* a, size_t an, size_t ofs, const C* t, size_t tn);
-size_t          fnd_last_not_of (const C* a, size_t an, size_t ofs, C c);
-size_t          fnd_last_not_of (const C* a, size_t an, size_t ofs, const C* t, size_t tn);
+#ifdef _WIN32
+mbc_enc_t mbc_enc_makeDBC(mbc_enc_st* mbcEnv, mbc_cp_t cp);
 #endif
 
-
-#ifdef __cplusplus
-inline size_t   Mbc_Env::strLen(const char* src) const { return mbc_adjust_size(this, src, ~(size_t)0); }
-inline size_t   Mbc_Env::adjust_size(const char* src, size_t sz) const { return mbc_adjust_size(this, src, sz); }
-
-inline size_t   Mbc_Env::sizeToWidth(const char* str, size_t size) const { return mbc_sizeToWidth (this,str,size); }
-inline size_t   Mbc_Env::sizeToChrs (const char* str, size_t size) const { return mbc_sizeToChrs  (this,str,size); }
-inline size_t   Mbc_Env::chrsToWidth(const char* str, size_t chrs) const { return mbc_chrsToWidth (this,str,chrs); }
-inline size_t   Mbc_Env::chrsToSize (const char* str, size_t chrs) const { return mbc_chrsToSize  (this,str,chrs); }
-inline size_t   Mbc_Env::widthToSize(const char* str, size_t width) const { return mbc_widthToSize(this,str,width); }
-inline size_t   Mbc_Env::widthToChrs(const char* str, size_t width) const { return mbc_widthToChrs(this,str,width); }
-
-inline char*    Mbc_Env::cpy(char dst[], size_t size, const char* src) const { return mbc_cpy(this, dst, size, src); }
-inline char*    Mbc_Env::cat(char dst[], size_t size, const char* src) const { return mbc_cat(this, dst, size, src); }
-inline char*    Mbc_Env::cpyNC(char dst[], size_t size, const char* src, size_t nc) const { return mbc_cpyNC(this, dst, size, src, nc); }
-inline char*    Mbc_Env::catNC(char dst[], size_t size, const char* src, size_t nc) const { return mbc_catNC(this, dst, size, src, nc); }
-inline char*    Mbc_Env::cpyWidth(char dst[], size_t size, const char* src, size_t width) const { return mbc_cpyWidth(this, dst, size, src, width); }
-inline char*    Mbc_Env::catWidth(char dst[], size_t size, const char* src, size_t width) const { return mbc_catWidth(this, dst, size, src, width); }
+#ifdef MBC_USE_JIS_CONV
+size_t  mbc_strConvJisType(mbc_enc_t dstEnc, char dst[], size_t dstSz
+                , mbc_enc_t srcEnc, char const* src, size_t srcSz);
 #endif
 
-
-
-// ===========================================================================
-// デフォルトの環境/言語専用.
-
-#ifdef MBC_USE_DEFAULT_ENV
-void     mbs_init(void);                                 // cの場合の初期化. c++では自動.
-void     mbs_setEnv(char const* lang);
-unsigned mbs_islead  (char c)               ;
-unsigned mbs_getc    (const char** ppStr)   ;
-unsigned mbs_peekc   (const char* str)      ;
-char*    mbs_inc     (const char* str)      ;
-void     mbs_putc    (char** d,unsigned c)  ;
-char*    mbs_setc    (char*  d,unsigned c)  ;
-unsigned mbs_len1    (const char* pChr)     ;
-unsigned mbs_chrLen  (unsigned chr)         ;
-unsigned mbs_chrWidth(unsigned chr)         ;
-size_t   mbs_strLen (const char* src);
-size_t   mbs_adjust_size(const char* src, size_t sz);
-
-size_t   mbs_sizeToWidth(const char* str, size_t size);
-size_t   mbs_widthToSize(const char* str, size_t width);
-
-size_t   mbs_sizeToWidth(const char* str, size_t size);
-size_t   mbs_sizeToChrs (const char* str, size_t size);
-size_t   mbs_chrsToSize (const char* str, size_t chrs);
-size_t   mbs_chrsToWidth(const char* str, size_t chrs);
-size_t   mbs_widthToSize(const char* str, size_t width);
-size_t   mbs_widthToChrs(const char* str, size_t width);
-
-char*    mbs_cpy(char dst[], size_t size, const char* src);
-char*    mbs_cat(char dst[], size_t size, const char* src);
-char*    mbs_cpyNC(char dst[], size_t size, const char* src, size_t nc);
-char*    mbs_catNC(char dst[], size_t size, const char* src, size_t nc);
-char*    mbs_cpyWidth(char dst[], size_t size, const char* src, size_t width);
-char*    mbs_catWidth(char dst[], size_t size, const char* src, size_t width);
-#endif
-
+char*   mbc_strUpLow(mbc_enc_t mbc, char str[], unsigned flags);
 
 #ifdef __cplusplus
 }
 #endif
 
 
-#endif  // MBCS_H_INCLUDED
+// ---------------------------------------------------------------------------
+
+#ifdef __cplusplus
+
+template<class V>
+mbc_enc_t mbc_autoEncodeCheck(V const& v, bool brokenEndChOk=1, mbc_enc_t const* tbl=NULL, size_t tblNum=0)
+{
+    //assert(sizeof(v[0]) == 1 || sizeof(v[0]) == 2 || sizeof(v[0]) == 4);
+    return  mbc_autoEncodeCheck(&v[0], v.size()*sizeof(v[0]), brokenEndChOk, tbl, tblNum);
+}
+
+template<class D, class S>
+D& mbc_convEnc(mbc_enc_t dstEnc, D& dst, mbc_enc_t srcEnc, S const& src)
+{
+    dst.resize(0);
+    if (srcEnc == NULL)
+        srcEnc = mbc_enc_utf8;
+    size_t sz     = src.size()*sizeof(src[0]);
+    char const* s = (char const*)&src[0];
+    size_t l  = mbc_strCountCapa(dstEnc, srcEnc, s, sz);
+    if (l > 0) {
+        size_t dsz = (l + sizeof(dst[0]) - 1) / sizeof(dst[0]);
+        dst.resize(dsz+1);
+        l = mbc_strConv(dstEnc, (char*)&dst[0], l, srcEnc, s, sz);
+        dsz = (l + sizeof(dst[0]) - 1) / sizeof(dst[0]);
+        dst[dsz] = 0;
+        dst.resize(dsz);
+    }
+    return dst;
+}
+
+#endif  // __cplusplus
+
+#endif  /* MBC_H_INCLUDED__ */

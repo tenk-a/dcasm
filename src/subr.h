@@ -26,9 +26,9 @@
 #define STREND(p)       ((p)+strlen(p))
 #define STRINS(d,s)     (memmove((d)+strlen(s),(d),strlen(d)+1),memcpy((d),(s),strlen(s)))
 
-#define MAX(x, y)       ((x) > (y) ? (x) : (y)) /* 最大値 */
-#define MIN(x, y)       ((x) < (y) ? (x) : (y)) /* 最小値 */
-#define ABS(x)          ((x) < 0 ? -(x) : (x))  /* 絶対値 */
+#define MAX(x, y)       ((x) > (y) ? (x) : (y)) /* 譛螟ｧ蛟､ */
+#define MIN(x, y)       ((x) < (y) ? (x) : (y)) /* 譛蟆丞､ */
+#define ABS(x)          ((x) < 0 ? -(x) : (x))  /* 邨ｶ蟇ｾ蛟､ */
 
 #define REVW(a)         ((((a) >> 8) & 0xff)|(((a) & 0xff) << 8))
 #define REVL(a)         ( (((a) & 0xff000000) >> 24)|(((a) & 0x00ff0000) >>  8)|(((a) & 0x0000ff00) <<  8)|(((a) & 0x000000ff) << 24) )
@@ -76,7 +76,7 @@
 extern int              debugflag;
 
 
-/* memマクロ */
+/* mem繝槭け繝ｭ */
 #define MEMCPY(d0,s0,c0) do {       \
     char*  d__ = (char*)(d0);       \
     char*  s__ = (char*)(s0);       \

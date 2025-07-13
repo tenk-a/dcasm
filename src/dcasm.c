@@ -1,6 +1,6 @@
 /**
   @file   dcasm.c
-  @brief  dc.b, dc.w, dc.l –½—ß‚Ì‚İ‚ÌƒAƒZƒ“ƒuƒ‰
+  @brief  dc.b, dc.w, dc.l å‘½ä»¤ã®ã¿ã®ã‚¢ã‚»ãƒ³ãƒ–ãƒ©
   @author Masashi KITAMURA    (tenka@6809.net)
   @date   2000,2017
   @note
@@ -14,15 +14,20 @@
 #include "strexpr.h"
 #include "mbc.h"
 
-#if defined(_WIN32) || defined(_MSC_VER)
-#define strcasecmp  stricmp
+#if defined(_WIN32)
+ #include <windows.h>
+ #if !defined(USE_SJIS)
+  #define USE_JAPANESE_CONSOLE()    SetConsoleOutputCP(65001)
+  char   s_jpFlag  = 0;
+ #endif
+ #define strcasecmp     _stricmp
 #endif
 
 
 #if defined(_MSC_VER) && _MSC_VER < 1600
-#define S_FMT_LL        "I64"
+ #define S_FMT_LL       "I64"
 #else
-#define S_FMT_LL        "ll"
+ #define S_FMT_LL       "ll"
 #endif
 #define S_FMT_X         "%" S_FMT_LL "x"
 #define S_FMT_08X       "%08" S_FMT_LL "x"
@@ -30,124 +35,197 @@
 
 typedef int64_t         val_t;
 
-#define VER_STR         "0.51"
+#define VER_STR         "0.52"
 
-void Usage(void)
+
+
+int Usage(void)
 {
-    err_printf(
+ #if defined(USE_JAPANESE_CONSOLE)
+    if (s_jpFlag) {
+        USE_JAPANESE_CONSOLE();
+        err_printf(
             "usage> dcasm [-opt] filename(s)   // " VER_STR " " __DATE__ "  " __TIME__ "  by tenk*\n"
             "       https://github.com/tenk-a/dcasm/\n"
-            "  ƒoƒCƒiƒŠEƒf[ƒ^¶¬‚ğ–Ú“I‚Æ‚µ‚½dcƒfƒBƒŒƒNƒeƒBƒu‚Ì‚İ‚ÌƒAƒZƒ“ƒuƒ‰\n"
-            "  ƒtƒ@ƒCƒ‹–¼‚ª•¡”w’è‚³‚ê‚½ê‡Aˆê˜A‚ÌƒeƒLƒXƒg‚Æ‚µ‚Ä‡‚É“Ç‚İ‚±‚Ş.\n"
-            "  o—Íƒtƒ@ƒCƒ‹–¼‚ÍÅ‰‚Ìƒtƒ@ƒCƒ‹–¼‚ÌŠg’£q‚ğ.bin‚É‚µ‚½‚à‚Ì\n"
-            "  -?        ‚±‚Ìƒwƒ‹ƒv\n"
-            "  -i<DIR>   ƒwƒbƒ_ƒtƒ@ƒCƒ‹‚Ì“ü—ÍƒfƒBƒŒƒNƒgƒŠ‚Ìw’è\n"
-            "  -o<FILE>  Œ‹‰Ê‚ğ FILE ‚Éo—Í.\n"
-            "  -e<FILE>  ƒGƒ‰[‚ğ FILE ‚Éo—Í\n"
-            "  -b<B|L>   ƒfƒtƒHƒ‹ƒg‚ÌƒGƒ“ƒfƒBƒAƒ“‚ğB=ƒrƒbƒO, L=ƒŠƒgƒ‹‚É‚·‚é\n"
-            "  -a<0|2|4|8> ƒAƒ‰ƒCƒƒ“ƒgÅ‘åƒoƒCƒg”(0:’²®–³) ex)-a2‚È‚çdc.l,dc.q‚à2byte’PˆÊ\n"
-            "  -r<FILE>  ˆê”Ô–Ú‚É“Ç‚Şƒtƒ@ƒCƒ‹‚ğw’è(ƒ‹[ƒ‹/ƒ}ƒNƒ’è‹`‚Ì‹Lqƒtƒ@ƒCƒ‹‚ğ‘z’è)\n"
-            "  -d<NAME>[=STR]  #define–¼’è‹`\n"
-            "  -u<NAME>  #undef‚·‚é\n"
-            "  -h<FILE>  xdef‚³‚ê‚½ƒ‰ƒxƒ‹‚ğ#defineŒ`®‚Åƒtƒ@ƒCƒ‹‚Éo—Í‚·‚é\n"
-            "  -y        •¶š—ñ’†, CŒ¾Œê‚Ì\\ƒGƒXƒP[ƒvƒV[ƒPƒ“ƒX‚ğ—LŒø  -y- –³Œø\n"
-            "  -s        ;‚ğƒRƒƒ“ƒgŠJn•¶š‚Å‚È‚­•¡•¶—p‚ÌƒZƒpƒŒ[ƒ^‚Æ‚µ‚Äˆµ‚¤\n"
-            "  -m        –½—ß(•¶–@)ƒwƒ‹ƒv‚ğ•W€ƒGƒ‰[o—Í\n"
-            "  -c<UTF8|MBC|SJIS|EUCJP>   “ü—ÍƒeƒLƒXƒg‚Ì•¶šƒGƒ“ƒR[ƒhw’è.\n"
-            "                            ¦MBC‚ÍWindowsŠÂ‹«‚Ì•¶šƒR[ƒh\n"
-            "  -v[-]     “r’†Œo‰ßƒƒbƒZ[ƒW‚ğ•\¦‚·‚é -v-‚µ‚È‚¢\n"
-            "  @FILE     ƒŒƒXƒ|ƒ“ƒXEƒtƒ@ƒCƒ‹w’è\n"
-    );
-    exit(1);
+            "  ãƒã‚¤ãƒŠãƒªãƒ»ãƒ‡ãƒ¼ã‚¿ç”Ÿæˆã‚’ç›®çš„ã¨ã—ãŸdcãƒ‡ã‚£ãƒ¬ã‚¯ãƒ†ã‚£ãƒ–ã®ã¿ã®ã‚¢ã‚»ãƒ³ãƒ–ãƒ©\n"
+            "  ãƒ•ã‚¡ã‚¤ãƒ«åãŒè¤‡æ•°æŒ‡å®šã•ã‚ŒãŸå ´åˆã€ä¸€é€£ã®ãƒ†ã‚­ã‚¹ãƒˆã¨ã—ã¦é †ã«èª­ã¿ã“ã‚€.\n"
+            "  å‡ºåŠ›ãƒ•ã‚¡ã‚¤ãƒ«åã¯æœ€åˆã®ãƒ•ã‚¡ã‚¤ãƒ«åã®æ‹¡å¼µå­ã‚’.binã«ã—ãŸã‚‚ã®\n"
+            "  -?        ã“ã®ãƒ˜ãƒ«ãƒ—\n"
+            "  -i<DIR>   ãƒ˜ãƒƒãƒ€ãƒ•ã‚¡ã‚¤ãƒ«ã®å…¥åŠ›ãƒ‡ã‚£ãƒ¬ã‚¯ãƒˆãƒªã®æŒ‡å®š\n"
+            "  -o<FILE>  çµæœã‚’ FILE ã«å‡ºåŠ›.\n"
+            "  -e<FILE>  ã‚¨ãƒ©ãƒ¼ã‚’ FILE ã«å‡ºåŠ›\n"
+            "  -b<B|L>   ãƒ‡ãƒ•ã‚©ãƒ«ãƒˆã®ã‚¨ãƒ³ãƒ‡ã‚£ã‚¢ãƒ³ã‚’B=ãƒ“ãƒƒã‚°, L=ãƒªãƒˆãƒ«ã«ã™ã‚‹\n"
+            "  -a<0|2|4|8> ã‚¢ãƒ©ã‚¤ãƒ¡ãƒ³ãƒˆæœ€å¤§ãƒã‚¤ãƒˆæ•°(0:èª¿æ•´ç„¡) ex)-a2ãªã‚‰dc.l,dc.qã‚‚2byteå˜ä½\n"
+            "  -r<FILE>  ä¸€ç•ªç›®ã«èª­è¾¼ã‚€ãƒ•ã‚¡ã‚¤ãƒ«ã‚’æŒ‡å®š(ãƒ«ãƒ¼ãƒ«/ãƒã‚¯ãƒ­å®šç¾©ã®è¨˜è¿°ãƒ•ã‚¡ã‚¤ãƒ«ã‚’æƒ³å®š)\n"
+            "  -d<NAME>[=STR]  #defineåå®šç¾©\n"
+            "  -u<NAME>  #undefã™ã‚‹\n"
+            "  -h<FILE>  xdefã•ã‚ŒãŸãƒ©ãƒ™ãƒ«ã‚’#defineå½¢å¼ã§ãƒ•ã‚¡ã‚¤ãƒ«ã«å‡ºåŠ›ã™ã‚‹\n"
+            "  -y        æ–‡å­—åˆ—ä¸­, Cè¨€èªã®\\ã‚¨ã‚¹ã‚±ãƒ¼ãƒ—ã‚·ãƒ¼ã‚±ãƒ³ã‚¹ã‚’æœ‰åŠ¹  -y- ç„¡åŠ¹\n"
+            "  -s        ;ã‚’ã‚³ãƒ¡ãƒ³ãƒˆé–‹å§‹æ–‡å­—ã§ãªãè¤‡æ–‡ç”¨ã®ã‚»ãƒ‘ãƒ¬ãƒ¼ã‚¿ã¨ã—ã¦æ‰±ã†\n"
+            "  -m        å‘½ä»¤(æ–‡æ³•)ãƒ˜ãƒ«ãƒ—ã‚’æ¨™æº–ã‚¨ãƒ©ãƒ¼å‡ºåŠ›\n"
+            "  -c<UTF8|DBC|SJIS|EUCJP>   å…¥åŠ›ãƒ†ã‚­ã‚¹ãƒˆã®æ–‡å­—ã‚¨ãƒ³ã‚³ãƒ¼ãƒ‰æŒ‡å®š.\n"
+            "                            â€»DBCã¯Windowsç’°å¢ƒã®æ–‡å­—ã‚³ãƒ¼ãƒ‰\n"
+            "  -v[-]     é€”ä¸­çµŒéãƒ¡ãƒƒã‚»ãƒ¼ã‚¸ã‚’è¡¨ç¤ºã™ã‚‹ -v-ã—ãªã„\n"
+            "  @FILE     ãƒ¬ã‚¹ãƒãƒ³ã‚¹ãƒ»ãƒ•ã‚¡ã‚¤ãƒ«æŒ‡å®š\n"
+        );
+    } else
+ #endif
+    {
+        err_printf(
+            "usage> dcasm [-opt] filename(s)   // " VER_STR " " __DATE__ "  " __TIME__ "  by tenk*\n"
+            "       https://github.com/tenk-a/dcasm/\n"
+            "  Assembler specialized for dc-directives (binary data generation)\n"
+            "  Multiple files are read sequentially as a single text.\n"
+            "  The output file is named after the first input, with extension changed to .bin\n"
+            "  -?        This help\n"
+            "  -i<DIR>   Specify directory for header file inclusion\n"
+            "  -o<FILE>  Output result to FILE\n"
+            "  -e<FILE>  Output errors to FILE\n"
+            "  -b<B|L>   Set default endianness to B=Big, L=Little\n"
+            "  -a<0|2|4|8> Set maximum alignment bytes (0: no adjustment),\n"
+            "             ex) -a2: dc.l/dc.q will also align to 2 bytes\n"
+            "  -r<FILE>  Specify a file to read first (for rules/macros)\n"
+            "  -d<NAME>[=STR]  #define symbol NAME[=STR]\n"
+            "  -u<NAME>  #undef symbol NAME\n"
+            "  -h<FILE>  Output xdef labels as #define into FILE\n"
+            "  -y        Enable C-style \\-escapes in strings, -y- disables\n"
+            "  -s        Treat ';' as statement separator, not comment\n"
+            "  -m        Show instruction/grammar help to stderr\n"
+            "  -c<UTF8|DBC|SJIS|EUCJP>  Specify input text encoding\n"
+            "                           (DBC: Windows double-byte encoding)\n"
+            "  -v[-]     Show progress messages (-v- disables)\n"
+            "  @FILE     Use response file for options/filenames\n"
+        );
+    }
+    return 1;
 }
 
 
-void ManHelp(void)
+int ManHelp(void)
 {
-    err_printf(
-            "dcasm " VER_STR " ‚Ìå‚Èd—l\n"
-            "10i””’l       0..9‚©_‚Å\¬‚³‚ê‚é•¶š—ñ. _‚Í–³‹.\n"
-            "16i””’l       CŒ¾Œê•—0x0, ƒCƒ“ƒeƒ‹•—0h, ƒ‚ƒgƒ[ƒ‰•—$0\n"
-            " 2i””’l       CŒ¾Œê•—Šg’£0b011AƒCƒ“ƒeƒ‹•— 011h •\‹L. ƒ‚ƒgƒ[ƒ‰•—•\‹L%011\n"
-            " 8i””’l       w’è‚Å‚«‚È‚¢\n"
-            "‰‰Zq(C‚É“¯‚¶)  () + - ! ~   * / % + - << >>  > >= < <= == != & ^ | && ||\n"
-            "s“ªƒAƒhƒŒƒX’l   $ ‚Ü‚½‚Í ’P€*\n"
-            "ƒRƒƒ“ƒg         ; ‚© * ‚© // ‚© rem ‚Ån‚Ü‚ès––‚Ü‚Å‚© /* */ ‚ÅˆÍ‚Ü‚ê‚½”ÍˆÍ\n"
-            "LBL:             ƒ‰ƒxƒ‹ LBL ‚ğ’è‹`\n"
-            "LBL: equ N       ƒ‰ƒxƒ‹ LBL ‚Ì’l‚ğ N ‚É‚·‚é\n"
-            "xdef LBL         ƒ‰ƒxƒ‹ LBL ‚ğ .h ƒtƒ@ƒCƒ‹‚É#define’è‹`‚Åo—Í.\n"
-            "dc.<b|w|l|q> ... 1ƒoƒCƒg/2ƒoƒCƒg/4ƒoƒCƒg/8ƒoƒCƒg®”—ñ‚Ìƒf[ƒ^¶¬\n"
-            "db dw dd dq  ... V\n"
-            "ds.<b|w|l> N     NƒoƒCƒg‚Ì—Ìˆæ‚ğŠm•Û(0–„‚ß)\n"
-            "org  N           ƒAƒhƒŒƒX‚ğ N‚É‚·‚é(Œ„ŠÔ‚Í0–„‚ß)\n"
-            "even             ƒAƒhƒŒƒX‚ª‹ô”‚É‚È‚é‚æ‚¤’²®(Œ„ŠÔ‚Í0–„‚ß)\n"
-            "align N          ƒAƒhƒŒƒX‚ªNƒoƒCƒg’PˆÊ‚É‚È‚é‚æ‚¤’²®\n"
-            "auto_align 2|4|8 ƒAƒ‰ƒCƒƒ“ƒgÅ‘åƒoƒCƒg”. ex)2 ‚È‚ç dc.l, dc.q ‚Å‚à2ƒoƒCƒg’PˆÊ\n"
-            "big_endian       ƒrƒbƒOEƒGƒ“ƒfƒBƒAƒ“‚É‚·‚é\n"
-            "little_endian    ƒŠƒgƒ‹EƒGƒ“ƒfƒBƒAƒ“‚É‚·‚é\n"
-            "char_enc UTF8|MBC|SJIS|EUCJP  •¶šƒGƒ“ƒR[ƒfƒBƒ“ƒOw’è\n"
-            "end              ƒ\[ƒX‚ÌI‚í‚è(‚È‚­‚Ä‚à‚æ‚¢)\n"
-            "#if,#define,#set,#macro,#rept,#ipr “™‚ÌğŒƒAƒZƒ“ƒuƒ‹‚âƒ}ƒNƒ–½—ß‚ ‚è\n"
+ #if defined(USE_JAPANESE_CONSOLE)
+    if (s_jpFlag) {
+        USE_JAPANESE_CONSOLE();
+        err_printf(
+            "dcasm " VER_STR " ã®ä¸»ãªä»•æ§˜\n"
+            "10é€²æ•°æ•°å€¤       0..9ã‹_ã§æ§‹æˆã•ã‚Œã‚‹æ–‡å­—åˆ—. _ã¯ç„¡è¦–.\n"
+            "16é€²æ•°æ•°å€¤       Cè¨€èªé¢¨0x0, ã‚¤ãƒ³ãƒ†ãƒ«é¢¨0h, ãƒ¢ãƒˆãƒ­ãƒ¼ãƒ©é¢¨$0\n"
+            " 2é€²æ•°æ•°å€¤       Cè¨€èªé¢¨æ‹¡å¼µ0b011ã€ã‚¤ãƒ³ãƒ†ãƒ«é¢¨ 011h è¡¨è¨˜. ãƒ¢ãƒˆãƒ­ãƒ¼ãƒ©é¢¨è¡¨è¨˜%011\n"
+            " 8é€²æ•°æ•°å€¤       æŒ‡å®šã§ããªã„\n"
+            "æ¼”ç®—å­(Cã«åŒã˜)  () + - ! ~   * / % + - << >>  > >= < <= == != & ^ | && ||\n"
+            "è¡Œé ­ã‚¢ãƒ‰ãƒ¬ã‚¹å€¤   $ ã¾ãŸã¯ å˜é …*\n"
+            "ã‚³ãƒ¡ãƒ³ãƒˆ         ; ã‹ * ã‹ // ã‹ rem ã§å§‹ã¾ã‚Šè¡Œæœ«ã¾ã§ã‹ /* */ ã§å›²ã¾ã‚ŒãŸç¯„å›²\n"
+            "LBL:             ãƒ©ãƒ™ãƒ« LBL ã‚’å®šç¾©\n"
+            "LBL: equ N       ãƒ©ãƒ™ãƒ« LBL ã®å€¤ã‚’ N ã«ã™ã‚‹\n"
+            "xdef LBL         ãƒ©ãƒ™ãƒ« LBL ã‚’ .h ãƒ•ã‚¡ã‚¤ãƒ«ã«#defineå®šç¾©ã§å‡ºåŠ›.\n"
+            "dc.<b|w|l|q> ... 1ãƒã‚¤ãƒˆ/2ãƒã‚¤ãƒˆ/4ãƒã‚¤ãƒˆ/8ãƒã‚¤ãƒˆæ•´æ•°åˆ—ã®ãƒ‡ãƒ¼ã‚¿ç”Ÿæˆ\n"
+            "db dw dd dq  ... ã€ƒ\n"
+            "ds.<b|w|l> N     Nãƒã‚¤ãƒˆã®é ˜åŸŸã‚’ç¢ºä¿(0åŸ‹ã‚)\n"
+            "org  N           ã‚¢ãƒ‰ãƒ¬ã‚¹ã‚’ Nã«ã™ã‚‹(éš™é–“ã¯0åŸ‹ã‚)\n"
+            "even             ã‚¢ãƒ‰ãƒ¬ã‚¹ãŒå¶æ•°ã«ãªã‚‹ã‚ˆã†èª¿æ•´(éš™é–“ã¯0åŸ‹ã‚)\n"
+            "align N          ã‚¢ãƒ‰ãƒ¬ã‚¹ãŒNãƒã‚¤ãƒˆå˜ä½ã«ãªã‚‹ã‚ˆã†èª¿æ•´\n"
+            "auto_align 2|4|8 ã‚¢ãƒ©ã‚¤ãƒ¡ãƒ³ãƒˆæœ€å¤§ãƒã‚¤ãƒˆæ•°. ex)2 ãªã‚‰ dc.l, dc.q ã§ã‚‚2ãƒã‚¤ãƒˆå˜ä½\n"
+            "big_endian       ãƒ“ãƒƒã‚°ãƒ»ã‚¨ãƒ³ãƒ‡ã‚£ã‚¢ãƒ³ã«ã™ã‚‹\n"
+            "little_endian    ãƒªãƒˆãƒ«ãƒ»ã‚¨ãƒ³ãƒ‡ã‚£ã‚¢ãƒ³ã«ã™ã‚‹\n"
+            //"char_enc UTF8|SJIS|EUCJP|DBC  æ–‡å­—ã‚¨ãƒ³ã‚³ãƒ¼ãƒ‡ã‚£ãƒ³ã‚°æŒ‡å®š\n"
+            "end              ã‚½ãƒ¼ã‚¹ã®çµ‚ã‚ã‚Š(ãªãã¦ã‚‚ã‚ˆã„)\n"
+            "#if,#define,#set,#macro,#rept,#ipr ç­‰ã®æ¡ä»¶ã‚¢ã‚»ãƒ³ãƒ–ãƒ«ã‚„ãƒã‚¯ãƒ­å‘½ä»¤ã‚ã‚Š\n"
         );
-    exit(1);
+    } else
+ #endif
+    {
+        err_printf(
+            "Main features of dcasm " VER_STR "\n"
+            "Decimal numbers      Strings of 0..9 or _, _ is ignored\n"
+            "Hex numbers          C style 0x0, Intel style 0h, Motorola style $0\n"
+            "Binary numbers       C style 0b011, Intel style 011h, Motorola style %011\n"
+            "Octal numbers        Not supported\n"
+            "Operators (like C)   () + - ! ~   * / % + - << >>  > >= < <= == != & ^ | && ||\n"
+            "Address at line head $ or unary *\n"
+            "Comments             Start with ;, *, //, rem, or block /* ... */\n"
+            "LBL:                 Define label LBL\n"
+            "LBL: equ N           Set label LBL to value N\n"
+            "xdef LBL             Output label LBL as #define to .h file\n"
+            "dc.<b|w|l|q> ...     Output int data: 1/2/4/8 bytes\n"
+            "db dw dd dq ...      Ditto\n"
+            "ds.<b|w|l> N         Reserve N bytes (zero filled)\n"
+            "org N                Set address to N (pad with zeros)\n"
+            "even                 Align to even address (pad with zeros)\n"
+            "align N              Align to N-byte boundary\n"
+            "auto_align 2|4|8     Set maximum alignment. e.g., 2: dc.l/dc.q aligned to 2\n"
+            "big_endian           Set big endian\n"
+            "little_endian        Set little endian\n"
+            //"char_enc UTF8|SJIS|EUCJP|DBC  Specify character encoding\n"
+            "end                   End of source (optional)\n"
+            "#if, #define, #set, #macro, #rept, #ipr etc. for conditional and macro assembly\n"
+        );
+    }
+    return 1;
 }
 
 
 /* ------------------------------------------------------------------------ */
-typedef enum CharEnc {
-    CHARENC_NONE = 0,
-    CHARENC_MBC,        // Win-API
-    CHARENC_UTF8,
-    CHARENC_SJIS,
-    CHARENC_EUC,
-    CHARENC_ERR = -1,
-} CharEnc;
 
-static CharEnc charEnc_mode = CHARENC_NONE;
+#define MBC_CP_ERR      ((mbc_cp_t)-1)
+#define MBS_ISLEAD(c)   (srcEncCP && mbc_isLead(srcEnc, c))
+#define MBS_LEN1(s)     (mbc_strLen1(srcEnc, (s)))
+#define MBS_GETC(s)     (mbc_getChr(srcEnc, (s)))
 
+static mbc_cp_t     baseEncCP   = MBC_CP_NONE;
+static mbc_cp_t     srcEncCP    = MBC_CP_NONE;
+static mbc_enc_t    srcEnc      = MBC_CP_NONE;
+#if 0
+static mbc_cp_t     dstEncCP    = MBC_CP_NONE;
+static mbc_enc_t    dstEnc      = MBC_CP_NONE;
+#endif
 
-void charEncSet(CharEnc enc) {
-    if (enc == CHARENC_ERR)
-        enc = CHARENC_NONE;
-    charEnc_mode = enc;
-    if (Filn)
-        Filn->opt_kanji = enc;
-    StrExpr_SetMbcMode(enc);
-
-    switch (enc) {
-    case CHARENC_MBC:
-        mbs_setEnv(NULL);
-        break;
-    case CHARENC_UTF8:
-        mbs_setEnv("ja_JP.UTF-8");
-        break;
-    case CHARENC_SJIS:
-        mbs_setEnv("sjis");
-        break;
-    case CHARENC_EUC:
-        mbs_setEnv("euc");
-        break;
-    default:
-        mbs_setEnv(NULL);
-        break;
+int setSrcTextEnc(mbc_cp_t enc) {
+    if (enc == MBC_CP_ERR) {
+        enc  = MBC_CP_1BYTE; //MBC_CP_NONE;
     }
+    if (srcEncCP == MBC_CP_NONE) {
+        srcEncCP = enc;
+        srcEnc   = mbc_cpToEnc(enc);
+        StrExpr_SetMbcMode(enc);
+        if (Filn) {
+            Filn->opt_kanji = enc != 0;
+        }
+    }
+    return srcEncCP == enc;
 }
 
-int charEncStrCheck(char const* name) {
-    if (strcasecmp(name, "mbc") == 0) {
-        return CHARENC_MBC;
-    } else if (strcasecmp(name, "utf8") == 0 || strcasecmp(name, "utf-8") == 0) {
-        return CHARENC_UTF8;
+#if 0
+void setDstTextEnc(mbc_cp_t enc) {
+    if (enc == MBC_CP_ERR)
+        enc  = MBC_CP_1BYTE;
+    dstEncCP = enc;
+    dstEnc   = mbc_cpToEnc(enc);
+}
+#endif
+
+mbc_cp_t charEncStrCheck(char const* name) {
+    if (!name)
+        return (mbc_cp_t)-1;
+    if (strcasecmp(name, "utf8") == 0 || strcasecmp(name, "utf-8") == 0) {
+        return MBC_CP_UTF8;
     } else if (strcasecmp(name, "sjis") == 0) {
-        return CHARENC_SJIS;
-    } else if (strcasecmp(name, "euc") == 0 || strcasecmp(name, "eucjp") == 0) {
-        return CHARENC_EUC;
+        return MBC_CP_SJIS;
+    } else if (strcasecmp(name, "eucjp") == 0 || strcasecmp(name, "euc-jp") == 0) {
+        return MBC_CP_EUCJP;
+    } else if (strcasecmp(name, "ascii") == 0 || strcasecmp(name, "cp437") == 0) {
+        return MBC_CP_1BYTE;
     } else if (strcasecmp(name, "none") == 0) {
-        return CHARENC_NONE;
+        return MBC_CP_NONE;
+ #if defined(_WIN32)
+    } else if (strcasecmp(name, "dbc") == 0 || strcasecmp(name, "mbc") == 0) {
+        return MBC_CP_DBC;
+ #endif
     } else {
-        return CHARENC_ERR;
+        return (mbc_cp_t)-1;
     }
 }
+
+
 
 /* ------------------------------------------------------------------------ */
 SLIST*      fileListTop = NULL;
@@ -155,15 +233,14 @@ char*       outname     = NULL;
 char*       errname     = NULL;
 char*       rulename    = NULL;
 char*       hdrname     = NULL;
-static int  cescMode;           /* c‚Ì \ ƒGƒXƒP[ƒvƒV[ƒPƒ“ƒX‚ğ—p‚¢‚é‚© */
-static int  optEndianMode;      /* ƒGƒ“ƒfƒBƒAƒ“‚Ìw’è                   */
-static int  autoAlignMode = 3;  /* dc.w, dc.l, dc.q ‚Å‚ÌA©“®ƒAƒ‰ƒCƒƒ“ƒg‚Ì•û–@ */
+static int  cescMode;           /* cã® \ ã‚¨ã‚¹ã‚±ãƒ¼ãƒ—ã‚·ãƒ¼ã‚±ãƒ³ã‚¹ã‚’ç”¨ã„ã‚‹ã‹ */
+static int  optEndianMode;      /* ã‚¨ãƒ³ãƒ‡ã‚£ã‚¢ãƒ³ã®æŒ‡å®š                   */
+static int  autoAlignMode = 3;  /* dc.w, dc.l, dc.q ã§ã®ã€è‡ªå‹•ã‚¢ãƒ©ã‚¤ãƒ¡ãƒ³ãƒˆã®æ–¹æ³• */
 static int  vmsgFlg;
 static int  useSep;
-static CharEnc  optCharEncMode;
 
 
-/** ƒIƒvƒVƒ‡ƒ“‚Ìˆ— 
+/** ã‚ªãƒ—ã‚·ãƒ§ãƒ³ã®å‡¦ç†
  */
 int scanOpts(char* a)
 {
@@ -196,7 +273,7 @@ int scanOpts(char* a)
         break;
     case 'E':
         errname = strdupE(p);
-        if (errname && errname[0]) {    /* ƒGƒ‰[o—Í‚Ì€”õ */
+        if (errname && errname[0]) {    /* ã‚¨ãƒ©ãƒ¼å‡ºåŠ›ã®æº–å‚™ */
             if (freopen(errname,"at",stderr) == NULL)
                 err_exit("%s : -e open error\n", errname);
         }
@@ -229,20 +306,20 @@ int scanOpts(char* a)
         vmsgFlg = (*p == '-') ? 0 : 1;
         break;
     case 'M':
-        ManHelp();
-        break;
+        return ManHelp();
     case 'Z':
         debugflag = (*p == '-') ? 0 : 1;
         break;
     case 'C':
-        optCharEncMode = charEncStrCheck(p);
-        if (optCharEncMode == CHARENC_ERR)
+        baseEncCP = charEncStrCheck(p);
+        if (baseEncCP == MBC_CP_ERR)
             err_exit("unkown -c param. : %s\n", a);
+        Filn_SetEnc(baseEncCP);
         break;
     case '\0':
         break;
     case '?':
-        Usage();
+        return Usage();
     default:
   OPT_ERR:
         err_exit("Incorrect command line option : %s\n", a);
@@ -277,8 +354,6 @@ void GetResFile(char* name)
 /*---------------------------------------------------------------------------*/
 /*---------------------------------------------------------------------------*/
 
-#define MBS_ISLEAD(c)       (charEnc_mode && mbs_islead(c))
-
 typedef struct srcl_t {
     struct srcl_t*  link;
     char*           fname;
@@ -297,7 +372,7 @@ void srcl_errorSw(int n)
     srcl_errDisp = n;
 }
 
-/** ƒ\[ƒX“ü—Í‚ÅƒGƒ‰[‚ª‚ ‚Á‚½‚Æ‚«
+/** ã‚½ãƒ¼ã‚¹å…¥åŠ›ã§ã‚¨ãƒ©ãƒ¼ãŒã‚ã£ãŸã¨ã
  */
 void srcl_error(char const* fmt, ...)
 {
@@ -320,7 +395,7 @@ void srcl_error(char const* fmt, ...)
 }
 
 
-/** ƒ\[ƒXs‚ğƒƒ‚ƒŠ‚É’™‚ß‚é‚½‚ßƒŠƒXƒg‚É‚·‚éB
+/** ã‚½ãƒ¼ã‚¹è¡Œã‚’ãƒ¡ãƒ¢ãƒªã«è²¯ã‚ã‚‹ãŸã‚ãƒªã‚¹ãƒˆã«ã™ã‚‹ã€‚
  */
 void srcl_add(srcl_t** p0, char const* fnm, int l, char const* s)
 {
@@ -343,7 +418,7 @@ void srcl_add(srcl_t** p0, char const* fnm, int l, char const* s)
 }
 
 
-/** ƒ\[ƒXs‚ÌŠJ•ú
+/** ã‚½ãƒ¼ã‚¹è¡Œã®é–‹æ”¾
  */
 void srcl_free(srcl_t** p0)
 {
@@ -359,7 +434,7 @@ void srcl_free(srcl_t** p0)
 }
 
 
-/** ƒZƒpƒŒ[ƒ^';' ‚Å‹æØ‚ç‚ê‚½ˆês‚ğ•¡”s‚É•ª‚¯‚é 
+/** ã‚»ãƒ‘ãƒ¬ãƒ¼ã‚¿';' ã§åŒºåˆ‡ã‚‰ã‚ŒãŸä¸€è¡Œã‚’è¤‡æ•°è¡Œã«åˆ†ã‘ã‚‹
  */
 char*   LinSep(char* st)
 {
@@ -396,7 +471,7 @@ char*   LinSep(char* st)
             *d++ = *s++;
             *d++ = *s++;
         } else if (MBS_ISLEAD(*(unsigned char*)s)) {
-            unsigned l = mbs_len1(s);
+            unsigned l = MBS_LEN1(s);
             memcpy(d, s, l);
             d += l;
             s += l;
@@ -409,7 +484,7 @@ char*   LinSep(char* st)
     return linbuf;
 }
 
-/** ƒ}ƒNƒ“WŠJÏ‚İ‚Ìƒ\[ƒX‚ğì¬‚·‚é 
+/** ãƒã‚¯ãƒ­å±•é–‹æ¸ˆã¿ã®ã‚½ãƒ¼ã‚¹ã‚’ä½œæˆã™ã‚‹
  */
 void GetSrcList(char* name)
 {
@@ -420,8 +495,11 @@ void GetSrcList(char* name)
     if (Filn_Open(name)) {
         exit(1);
     }
+    if (setSrcTextEnc( Filn_GetEnc() ) == 0)
+        err_printf("Error: Text encoding does not match.\n");
+
     for (; ;) {
-        s = Filn_Gets();    /* ƒ}ƒNƒ“WŠJŒã‚Ìƒ\[ƒX‚ğæ“¾ */
+        s = Filn_Gets();    /* ãƒã‚¯ãƒ­å±•é–‹å¾Œã®ã‚½ãƒ¼ã‚¹ã‚’å–å¾— */
         if (s == NULL)
             break;
         Filn_GetFnameLine((char const**)&fnm, &l);
@@ -432,13 +510,13 @@ void GetSrcList(char* name)
             srcl_add(&srcl, fnm, l, linbuf);
         } else {
             char *p;
-            p = LinSep(s);  /* À‚Íp‚Ílinbuf‚ğ‚³‚µ‚Ä‚¢‚é */
+            p = LinSep(s);  /* å®Ÿã¯pã¯linbufã‚’ã•ã—ã¦ã„ã‚‹ */
             while (p) {
                 srcl_add(&srcl, fnm, l, p);
                 p = LinSep(NULL);
             }
         }
-        freeE(s);           /* æ“¾‚µ‚½ƒƒ‚ƒŠ‚ğŠJ•ú */
+        freeE(s);           /* å–å¾—ã—ãŸãƒ¡ãƒ¢ãƒªã‚’é–‹æ”¾ */
     }
 }
 
@@ -461,7 +539,7 @@ static TREE*    LBL_tree;
 
 
 
-/** TREE ƒ‹[ƒ`ƒ“‚ÅAV‚µ‚¢—v‘f‚ğ‘¢‚é‚Æ‚«‚ÉŒÄ‚Î‚ê‚é 
+/** TREE ãƒ«ãƒ¼ãƒãƒ³ã§ã€æ–°ã—ã„è¦ç´ ã‚’é€ ã‚‹ã¨ãã«å‘¼ã°ã‚Œã‚‹
  */
 static void *LBL_New(label_t const* t)
 {
@@ -474,7 +552,7 @@ static void *LBL_New(label_t const* t)
 
 
 
-/** ƒ‰ƒxƒ‹TREE ƒ‹[ƒ`ƒ“‚ÅAƒƒ‚ƒŠŠJ•ú‚Ì‚Æ‚«‚ÉŒÄ‚Î‚ê‚é 
+/** ãƒ©ãƒ™ãƒ«TREE ãƒ«ãƒ¼ãƒãƒ³ã§ã€ãƒ¡ãƒ¢ãƒªé–‹æ”¾ã®ã¨ãã«å‘¼ã°ã‚Œã‚‹
  */
 static void LBL_Del(void *ff)
 {
@@ -483,7 +561,7 @@ static void LBL_Del(void *ff)
 
 
 
-/** ƒ‰ƒxƒ‹TREE ƒ‹[ƒ`ƒ“‚ÅA—p‚¢‚ç‚ê‚é”äŠrğŒ 
+/** ãƒ©ãƒ™ãƒ«TREE ãƒ«ãƒ¼ãƒãƒ³ã§ã€ç”¨ã„ã‚‰ã‚Œã‚‹æ¯”è¼ƒæ¡ä»¶
  */
 static int  LBL_Cmp(label_t const* f1, label_t const* f2)
 {
@@ -492,7 +570,7 @@ static int  LBL_Cmp(label_t const* f1, label_t const* f2)
 
 
 
-/** ƒ‰ƒxƒ‹TREE ‚ğ‰Šú‰» 
+/** ãƒ©ãƒ™ãƒ«TREE ã‚’åˆæœŸåŒ–
  */
 void    LBL_Init(void)
 {
@@ -501,7 +579,7 @@ void    LBL_Init(void)
 
 
 
-/** ƒ‰ƒxƒ‹TREE ‚ğŠJ•ú 
+/** ãƒ©ãƒ™ãƒ«TREE ã‚’é–‹æ”¾
  */
 void LBL_Term(void)
 {
@@ -510,7 +588,7 @@ void LBL_Term(void)
 
 
 
-/** Œ»İ‚Ì–¼‘O‚ªƒ‰ƒxƒ‹tree‚É“o˜^‚³‚ê‚½ƒ‰ƒxƒ‹‚©‚Ç‚¤‚©’T‚·
+/** ç¾åœ¨ã®åå‰ãŒãƒ©ãƒ™ãƒ«treeã«ç™»éŒ²ã•ã‚ŒãŸãƒ©ãƒ™ãƒ«ã‹ã©ã†ã‹æ¢ã™
  */
 label_t *LBL_Search(char const* lbl_name)
 {
@@ -520,14 +598,14 @@ label_t *LBL_Search(char const* lbl_name)
     t.name = lbl_name;
     if (t.name == NULL) {
         srcl_error("bad name\n");
-        exit(1);
+        return NULL; //exit(1);
     }
     return TREE_Search(LBL_tree, &t);
 }
 
 
 
-/** ƒ‰ƒxƒ‹(–¼‘O)‚ğ–Ø‚É“o˜^‚·‚é 
+/** ãƒ©ãƒ™ãƒ«(åå‰)ã‚’æœ¨ã«ç™»éŒ²ã™ã‚‹
  */
 label_t *LBL_Add(char const* lbl_name, val_t val, int typ)
 {
@@ -538,13 +616,13 @@ label_t *LBL_Add(char const* lbl_name, val_t val, int typ)
     t.name  = lbl_name;
     //t.line  = TXT1_line;
     p = TREE_Insert(LBL_tree, &t);
-    if (LBL_tree->flag == 0) {          /* V‹K“o˜^‚Å‚È‚©‚Á‚½ */
+    if (LBL_tree->flag == 0) {          /* æ–°è¦ç™»éŒ²ã§ãªã‹ã£ãŸ */
         if (p->typ == 1 || typ == 1) {
             p->typ = 3;
             if (typ == 0)
                 p->val = val;
         } else {
-            //srcl_error("%s ‚ª‘½d’è‹`‚©‚à\n", lbl_name);
+            //srcl_error("%s ãŒå¤šé‡å®šç¾©ã‹ã‚‚\n", lbl_name);
             srcl_error("'%s' is overloaded.\n", lbl_name);
             p = NULL;
         }
@@ -593,7 +671,7 @@ typedef struct odr_t {
 
 static TREE*    odr_tree;
 
-/** TREE ƒ‹[ƒ`ƒ“‚ÅAV‚µ‚¢—v‘f‚ğ‘¢‚é‚Æ‚«‚ÉŒÄ‚Î‚ê‚é
+/** TREE ãƒ«ãƒ¼ãƒãƒ³ã§ã€æ–°ã—ã„è¦ç´ ã‚’é€ ã‚‹ã¨ãã«å‘¼ã°ã‚Œã‚‹
  */
 static void*    odr_new(odr_t const* t)
 {
@@ -605,14 +683,14 @@ static void*    odr_new(odr_t const* t)
     return p;
 }
 
-/** TREE ƒ‹[ƒ`ƒ“‚ÅAƒƒ‚ƒŠŠJ•ú‚Ì‚Æ‚«‚ÉŒÄ‚Î‚ê‚é
+/** TREE ãƒ«ãƒ¼ãƒãƒ³ã§ã€ãƒ¡ãƒ¢ãƒªé–‹æ”¾ã®ã¨ãã«å‘¼ã°ã‚Œã‚‹
  */
 static void odr_del(void *ff)
 {
     freeE(ff);
 }
 
-/** TREE ƒ‹[ƒ`ƒ“‚ÅA—p‚¢‚ç‚ê‚é”äŠrğŒ
+/** TREE ãƒ«ãƒ¼ãƒãƒ³ã§ã€ç”¨ã„ã‚‰ã‚Œã‚‹æ¯”è¼ƒæ¡ä»¶
  */
 static int  odr_cmp(odr_t const* f1, odr_t const* f2)
 {
@@ -632,7 +710,7 @@ int odr_search(char const* name)
     return ODR_NON;
 }
 
-/** ƒ‰ƒxƒ‹(–¼‘O)‚ğ–Ø‚É“o˜^‚·‚é
+/** ãƒ©ãƒ™ãƒ«(åå‰)ã‚’æœ¨ã«ç™»éŒ²ã™ã‚‹
  */
 odr_t*  odr_add(char const* name, int id)
 {
@@ -642,9 +720,9 @@ odr_t*  odr_add(char const* name, int id)
     memset (&t, 0, sizeof(odr_t));
     t.name  = name;
     p = TREE_Insert(odr_tree, &t);
-    if (odr_tree->flag == 0) {          /* V‹K“o˜^‚Å‚È‚©‚Á‚½ */
-        /* ƒOƒ[ƒoƒ‹éŒ¾‚³‚ê‚½ƒ‰ƒxƒ‹‚Ì‚Æ‚« */
-        //err_printf( "PRGERR:‘½d’è‹` %s\n", name);
+    if (odr_tree->flag == 0) {          /* æ–°è¦ç™»éŒ²ã§ãªã‹ã£ãŸ */
+        /* ã‚°ãƒ­ãƒ¼ãƒãƒ«å®£è¨€ã•ã‚ŒãŸãƒ©ãƒ™ãƒ«ã®ã¨ã */
+        //err_printf( "PRGERR:å¤šé‡å®šç¾© %s\n", name);
         err_printf( "PRGERR:Overload %s\n", name);
         p = NULL;
     } else {
@@ -656,7 +734,7 @@ odr_t*  odr_add(char const* name, int id)
 
 void    odr_init(void)
 {
-    /* TREE ‚ğ‰Šú‰» */
+    /* TREE ã‚’åˆæœŸåŒ– */
     odr_tree = TREE_Make((TREE_NEW) odr_new, (TREE_DEL) odr_del, (TREE_CMP) odr_cmp, (TREE_MALLOC) mallocE, (TREE_FREE) freeE);
     odr_add("org",          ODR_ORG);
     odr_add("dc.b",         ODR_DC_B);
@@ -685,12 +763,12 @@ void    odr_init(void)
     odr_add("equ",          ODR_EQU);
     odr_add("xdef",         ODR_XDEF);
     odr_add("rem",          ODR_REM);
-    odr_add("char_enc",     ODR_CHAR_ENC);
+    //odr_add("char_enc",   ODR_CHAR_ENC);
 }
 
 void odr_term(void)
 {
-    /* TREE ‚ğŠJ•ú */
+    /* TREE ã‚’é–‹æ”¾ */
     TREE_Clear(odr_tree);
 }
 
@@ -701,9 +779,9 @@ void odr_term(void)
 #define TOK_NAME_LEN    1024
 
 static int              passMode;
-static ptrdiff_t        g_adr;          /* ƒAƒhƒŒƒX */
-ptrdiff_t               g_adrLinTop;    /* s“ªƒAƒhƒŒƒX. StrExpr‚©‚çQÆ‚³‚ê‚é */
-static unsigned char    *g_mem;         /* ƒƒ‚ƒŠ */
+static ptrdiff_t        g_adr;          /* ã‚¢ãƒ‰ãƒ¬ã‚¹ */
+ptrdiff_t               g_adrLinTop;    /* è¡Œé ­ã‚¢ãƒ‰ãƒ¬ã‚¹. StrExprã‹ã‚‰å‚ç…§ã•ã‚Œã‚‹ */
+static unsigned char    *g_mem;         /* ãƒ¡ãƒ¢ãƒª */
 static char             tok_name[TOK_NAME_LEN+2];
 static int              g_endianMode;
 
@@ -712,10 +790,10 @@ char const* GetName(char *buf, char const* s)
     unsigned n;
 
     n = 0;
-    if (IsLblTop(*s) || MBS_ISLEAD(*s)) {     //s“ª‚É‹ó”’‚Ì‚ ‚éƒ‰ƒxƒ‹’è‹`ƒ`ƒFƒbƒN
+    if (IsLblTop(*s) || MBS_ISLEAD(*s)) {     //è¡Œé ­ã«ç©ºç™½ã®ã‚ã‚‹ãƒ©ãƒ™ãƒ«å®šç¾©ãƒã‚§ãƒƒã‚¯
         for (;;) {
             if (MBS_ISLEAD(*s)) {
-                unsigned l = mbs_len1(s);
+                unsigned l = MBS_LEN1(s);
                 if (n <= TOK_NAME_LEN - l) {
                     n += l;
                     memcpy(buf, s, l);
@@ -806,15 +884,14 @@ int  GetCh(char const** sp, int md)
             break;
         default:
             if (c < 0x20 || c == 0x7f || c >= 0xFD) {
-                //srcl_error("\\‚Ì’¼Œã‚ÉƒRƒ“ƒgƒ[ƒ‹ƒR[ƒh‚ª‚ ‚é\n");
+                //srcl_error("\\ã®ç›´å¾Œã«ã‚³ãƒ³ãƒˆãƒ­ãƒ¼ãƒ«ã‚³ãƒ¼ãƒ‰ãŒã‚ã‚‹\n");
                 srcl_error("There is a control character immediately after \\\n");
             }
             ch = c;
         }
     } else if (MBS_ISLEAD(ch) && md > 0) {
         --s;
-        ch = mbs_getc(&s);      // utf16‚ÌƒTƒƒQ[ƒgƒyƒA‚Í–¢‘Î‰
-
+        ch = MBS_GETC(&s);
     }
     *sp = s;
     return ch;
@@ -851,10 +928,10 @@ val_t  Expr(char const**    sp)
         static char const* const msg[] = {
             "",
          #if 0
-            "‘z’è‚µ‚Ä‚¢‚È‚¢®‚¾",
-            "®‚ÌŠ‡ŒÊ‚ª•Â‚¶‚Ä‚¢‚È‚¢",
-            "®‚Å0‚ÅŠ„‚ë‚¤‚Æ‚µ‚½",
-            "®’†‚É–¢’è‹`‚Ì–¼‘O‚ª‚ ‚é",
+            "æƒ³å®šã—ã¦ã„ãªã„å¼ã ",
+            "å¼ã®æ‹¬å¼§ãŒé–‰ã˜ã¦ã„ãªã„",
+            "å¼ã§0ã§å‰²ã‚ã†ã¨ã—ãŸ",
+            "å¼ä¸­ã«æœªå®šç¾©ã®åå‰ãŒã‚ã‚‹",
          #else
             "It is an unexpected expression.",
             "Expression brackets are not closed.",
@@ -873,7 +950,7 @@ val_t  Expr(char const**    sp)
 
 
 
-/** •¶š—ñ *sp ‚Ì ','‚Å‹æØ‚ç‚ê‚½€–Ú‚Ì”‚ğ”‚¦‚é
+/** æ–‡å­—åˆ— *sp ã® ','ã§åŒºåˆ‡ã‚‰ã‚ŒãŸé …ç›®ã®æ•°ã‚’æ•°ãˆã‚‹
  */
 int CountArg(char const** sp, int md)
 {
@@ -885,7 +962,7 @@ int CountArg(char const** sp, int md)
         s = StrSkipSpc(s);
         if (*s == ';' || *s == 0 || *s == '\n')
             break;
-        if (*s == '"') {    /* •¶š—ñ‚ÍA1•¶š‚ğ1€–Ú‚Æ‚µ‚ÄƒJƒEƒ“ƒg‚·‚é */
+        if (*s == '"') {    /* æ–‡å­—åˆ—ã¯ã€1æ–‡å­—ã‚’1é …ç›®ã¨ã—ã¦ã‚«ã‚¦ãƒ³ãƒˆã™ã‚‹ */
             ++s;
             for (;;) {
                 if (*s == 0) {
@@ -915,7 +992,7 @@ int CountArg(char const** sp, int md)
 
 
 
-/** •¶š—ñ *sp ‚Ì ','‚Å‹æØ‚ç‚ê‚½”’l‚ğ num ŒÂAimm[] ‚Éæ“¾
+/** æ–‡å­—åˆ— *sp ã® ','ã§åŒºåˆ‡ã‚‰ã‚ŒãŸæ•°å€¤ã‚’ num å€‹ã€imm[] ã«å–å¾—
  */
 void GetArg(char const** sp, val_t imm[], int num)
 {
@@ -933,12 +1010,12 @@ void GetArg(char const** sp, val_t imm[], int num)
         imm[i] = Expr(&s);
         s = StrSkipSpc(s);
         if (*s != ',' && i < num-1)
-            //srcl_error("ˆø”‚Ì”‚ª­‚È‚¢(%dŒÂ‚Ì‚Í‚¸‚ª%dŒÂ‚µ‚©‚È‚¢)\n", num, i);
+            //srcl_error("å¼•æ•°ã®æ•°ãŒå°‘ãªã„(%då€‹ã®ã¯ãšãŒ%då€‹ã—ã‹ãªã„)\n", num, i);
             srcl_error("Too few argument(s)(need %d, but %d)\n", num, i);
         s++;
     }
     if (i >= num && s[-1] == ',') {
-        //srcl_error("ˆø”‚Ì”‚ª‘½‚¢(%dŒÂˆÈã‚ ‚é‚©‚à)\n", num+1);
+        //srcl_error("å¼•æ•°ã®æ•°ãŒå¤šã„(%då€‹ä»¥ä¸Šã‚ã‚‹ã‹ã‚‚)\n", num+1);
         srcl_error("Too many argument(s)(need %d)\n", num);
     }
     *sp = s;
@@ -1000,7 +1077,7 @@ void putOne(val_t val, int md)
         POKEB(&g_mem[g_adr], (uint8_t)val);
         g_adr++;
         if (val < -128 || val > 255) {
-            // srcl_error("’l‚ª 8ƒrƒbƒg®”‚Ì”ÍˆÍ‚ğ’´‚¦‚Ä‚¢‚é(" S_FMT_X ")\n", val);
+            // srcl_error("å€¤ãŒ 8ãƒ“ãƒƒãƒˆæ•´æ•°ã®ç¯„å›²ã‚’è¶…ãˆã¦ã„ã‚‹(" S_FMT_X ")\n", val);
             srcl_error("Out of 8 bits integer(" S_FMT_X ")\n", val);
         }
     } else if (md == 1) {
@@ -1010,7 +1087,7 @@ void putOne(val_t val, int md)
             POKEmW(&g_mem[g_adr], val);
         g_adr += 2;
         if (val < -32768 || val > 0xFFFF) {
-            //srcl_error("’l‚ª16ƒrƒbƒg®”‚Ì”ÍˆÍ‚ğ’´‚¦‚Ä‚¢‚é(" S_FMT_X ")\n", val);
+            //srcl_error("å€¤ãŒ16ãƒ“ãƒƒãƒˆæ•´æ•°ã®ç¯„å›²ã‚’è¶…ãˆã¦ã„ã‚‹(" S_FMT_X ")\n", val);
             srcl_error("Out of 16 bits integer(" S_FMT_X ")\n", val);
         }
     } else if (md == 2) {
@@ -1020,7 +1097,7 @@ void putOne(val_t val, int md)
             POKEmD(&g_mem[g_adr], val);
         g_adr += 4;
         if (val < -(val_t)2147483648 || val > (val_t)0xFFFFFFFF) {
-            //srcl_error("’l‚ª32ƒrƒbƒg®”‚Ì”ÍˆÍ‚ğ’´‚¦‚Ä‚¢‚é(" S_FMT_X ")\n", val);
+            //srcl_error("å€¤ãŒ32ãƒ“ãƒƒãƒˆæ•´æ•°ã®ç¯„å›²ã‚’è¶…ãˆã¦ã„ã‚‹(" S_FMT_X ")\n", val);
             srcl_error("Out of 32 bits integer(" S_FMT_X ")\n", val);
         }
     } else if (md == 3) {
@@ -1050,7 +1127,7 @@ void gen_dc(char const** sp, int md)
         s = StrSkipSpc(s);
         if (*s == ';' || *s == 0 || *s == '\n')
             break;
-        if (*s == '"') {    /* •¶š—ñ‚ÍA1•¶š‚ğ1€–Ú‚Æ‚µ‚ÄƒJƒEƒ“ƒg‚·‚é */
+        if (*s == '"') {    /* æ–‡å­—åˆ—ã¯ã€1æ–‡å­—ã‚’1é …ç›®ã¨ã—ã¦ã‚«ã‚¦ãƒ³ãƒˆã™ã‚‹ */
             ++s;
             for (;;) {
                 if (*s == 0) {
@@ -1061,6 +1138,10 @@ void gen_dc(char const** sp, int md)
                     break;
                 }
                 val = GetCh(&s, md);
+             #if 0 //TODO
+                if (dstEncCP != srcEncCP)
+                    val =
+             #endif
                 putOne(val,md);
             }
         } else {
@@ -1081,9 +1162,9 @@ void pass1_dc(char const** sp, int md)
 {
     int     n;
 
-    n = CountArg(sp, md);   // ˆø”‚Ì”‚ğ”‚¦‚é
+    n = CountArg(sp, md);   // å¼•æ•°ã®æ•°ã‚’æ•°ãˆã‚‹
     if (n == 0) {
-        //srcl_error("dc ‚Éˆø”‚ª‚È‚¢.\n");
+        //srcl_error("dc ã«å¼•æ•°ãŒãªã„.\n");
         srcl_error("'dc' has no arguments.\n");
     } else {
         switch (md) {
@@ -1112,7 +1193,7 @@ void pass1_dc(char const** sp, int md)
 void gen_ds(val_t val, int md)
 {
     if (val < 0) {
-        //srcl_error("ds ‚Ìˆø”‚Ì’l‚ª•‰(‚±‚Ì–½—ß‚ğ–³‹).\n");
+        //srcl_error("ds ã®å¼•æ•°ã®å€¤ãŒè² (ã“ã®å‘½ä»¤ã‚’ç„¡è¦–).\n");
         srcl_error("The argument value of 'ds' is negative (ignoring this instruction)\n");
     } else {
         switch (md) {
@@ -1139,7 +1220,7 @@ void gen_ds(val_t val, int md)
 void gen_align(val_t n)
 {
     if (n < 1 || n > 0x100000) {
-        //srcl_error("align ‚Ìˆø”‚ª 0ˆÈ‰º‚© 0x100001 ˆÈã‚ªw’è‚³‚ê‚Ä‚¢‚é\n");
+        //srcl_error("align ã®å¼•æ•°ãŒ 0ä»¥ä¸‹ã‹ 0x100001 ä»¥ä¸ŠãŒæŒ‡å®šã•ã‚Œã¦ã„ã‚‹\n");
         srcl_error("Argument of 'align' is out of range(1..0x100000, but %d)\n", n);
         n = 1;
     }
@@ -1158,7 +1239,7 @@ void gen_autoAlign(int n)
     else if (n == 8)
         autoAlignMode = 3;
     else {
-        //srcl_error("auto_align ‚Ìˆø”‚ª‚¨‚©‚µ‚¢(%d)\n", n);
+        //srcl_error("auto_align ã®å¼•æ•°ãŒãŠã‹ã—ã„(%d)\n", n);
         srcl_error("The argument of 'auto_align' is wrong(%d)\n", n);
     }
 }
@@ -1167,7 +1248,7 @@ void gen_autoAlign(int n)
 void gen_org(val_t val)
 {
     if (g_adr > val) {
-        //srcl_error("org ‚Ìˆø”‚ªŒ»İ‚ÌƒAƒhƒŒƒX‚æ‚è¬‚³‚¢(‚±‚Ìw’è‚ğ–³‹‚µ‚Ü‚·)\n");
+        //srcl_error("org ã®å¼•æ•°ãŒç¾åœ¨ã®ã‚¢ãƒ‰ãƒ¬ã‚¹ã‚ˆã‚Šå°ã•ã„(ã“ã®æŒ‡å®šã‚’ç„¡è¦–ã—ã¾ã™)\n");
         srcl_error("The argument of 'org' is smaller than the current address (ignoring this specification)\n");
     } else {
         g_adr = (ptrdiff_t)val;
@@ -1184,10 +1265,10 @@ void gen_endian(int md)
 
 /*-------------------------------*/
 static int striMode = 0;
-static int striOpt  = 1;        /* bit 0:s“ª‹ó”’‚ğíœ1:‚·‚é/0:‚µ‚È‚¢ */
-                                /* bit 1:‰üs‚ğíœ 1:‚·‚é/0:‚µ‚È‚¢ */
-                                /* bit 2:‹ós‚ğíœ 1:‚·‚é/0:‚µ‚È‚¢ */
-                                /* bit 3:‘SŠp‹ó”’‚à‘ÎÛ 1:‚·‚é/0:‚µ‚È‚¢ */
+static int striOpt  = 1;        /* bit 0:è¡Œé ­ç©ºç™½ã‚’å‰Šé™¤1:ã™ã‚‹/0:ã—ãªã„ */
+                                /* bit 1:æ”¹è¡Œã‚’å‰Šé™¤ 1:ã™ã‚‹/0:ã—ãªã„ */
+                                /* bit 2:ç©ºè¡Œã‚’å‰Šé™¤ 1:ã™ã‚‹/0:ã—ãªã„ */
+                                /* bit 3:å…¨è§’ç©ºç™½ã‚‚å¯¾è±¡ 1:ã™ã‚‹/0:ã—ãªã„ */
 
 
 void GenStri(char const* s, int passNo)
@@ -1211,7 +1292,7 @@ void GenStri(char const* s, int passNo)
         }
         c = *s;
         if (MBS_ISLEAD(c)) {
-            unsigned l = mbs_len1(s);
+            unsigned l = MBS_LEN1(s);
            if (passNo == 2) {
                 memcpy(&g_mem[g_adr], s, l);
             }
@@ -1236,7 +1317,7 @@ void GenStriEnd(int passNo)
     if (striMode) {
         if (passNo == 2) {
             POKEB(&g_mem[g_adr], 0);
-            
+
         }
         g_adr++;
     }
@@ -1274,7 +1355,7 @@ int Pass_Line(int passNo, char const* s0)
         if (striMode) {
             GenStri(s0, passNo);
         } else {
-            //srcl_error("–½—ß‚ÌˆÊ’u‚ÉA–¼‘OˆÈŠO‚Ì‚à‚Ì‚ª‚ ‚é::%s\n",s);
+            //srcl_error("å‘½ä»¤ã®ä½ç½®ã«ã€åå‰ä»¥å¤–ã®ã‚‚ã®ãŒã‚ã‚‹::%s\n",s);
             srcl_error("No order name: '%s'\n",s);
         }
         return 0;
@@ -1288,7 +1369,7 @@ int Pass_Line(int passNo, char const* s0)
     }
     switch (c) {
     case ODR_NON:
-        //srcl_error("–½—ß‚ÌˆÊ’u‚ÉA–½—ßˆÈŠO‚Ì–¼‘O‚ª‚ ‚é::%s\n",tok_name);
+        //srcl_error("å‘½ä»¤ã®ä½ç½®ã«ã€å‘½ä»¤ä»¥å¤–ã®åå‰ãŒã‚ã‚‹::%s\n",tok_name);
         srcl_error("Not order name: '%s'\n",tok_name);
         return 0;
     case ODR_REM:
@@ -1299,7 +1380,7 @@ int Pass_Line(int passNo, char const* s0)
             if (cl) {
                 cl->val = imm[0];
             } else {
-                //srcl_error("equ’è‹`‚Åƒ‰ƒxƒ‹‚ªw’è‚³‚ê‚Ä‚¢‚È‚¢\n");
+                //srcl_error("equå®šç¾©ã§ãƒ©ãƒ™ãƒ«ãŒæŒ‡å®šã•ã‚Œã¦ã„ãªã„\n");
                 srcl_error("A label name is not specified with 'equ'\n");
             }
         }
@@ -1381,7 +1462,7 @@ int Pass_Line(int passNo, char const* s0)
                 if (name[0]) {
                     LBL_Add(name, 0, 1);
                 } else {
-                    //srcl_error("xdef ’è‹`‚Éƒ‰ƒxƒ‹–¼‚ª‚È‚¢\n");
+                    //srcl_error("xdef å®šç¾©ã«ãƒ©ãƒ™ãƒ«åãŒãªã„\n");
                     srcl_error("Argument of 'xdef' has no label name\n");
                 }
             }
@@ -1394,21 +1475,27 @@ int Pass_Line(int passNo, char const* s0)
         s = StrSkipSpc(s);
         s = GetName(name, s);
         s = StrSkipSpc(s);
-        charEnc_mode = charEncStrCheck(name);
-        if (charEnc_mode == CHARENC_ERR)
-            err_exit("Unkown 'char_enc' arguments. : '%s'\n", name);
-        charEncSet(charEnc_mode);
+     #if 1
+        srcl_error("'char_enc' is obsolete\n");
+     #else
+        dstEncCP = charEncStrCheck(name);
+        if (dstEncCP != MBC_CP_ERR) {
+            setDstTextEnc(dstEncCP);
+        } else {
+            srcl_error("Unkown 'char_enc' arguments. : '%s'\n", name);
+        }
+     #endif
         break;
     case ODR_END:
         return 1;
     default:
-        //srcl_error("PRGERR:’m‚ç‚È‚¢–½—ß(%x)\n", c);
+        //srcl_error("PRGERR:çŸ¥ã‚‰ãªã„å‘½ä»¤(%x)\n", c);
         srcl_error("PRGERR: Unkown order(%x)\n", c);
         return 0;
     }
     s = StrSkipSpc(s);
     if (s && *s && *s != ';') {
-        //srcl_error("s––‚É—]•ª‚È•¶š—ñ‚ª‚ ‚é... %s\n", s);
+        //srcl_error("è¡Œæœ«ã«ä½™åˆ†ãªæ–‡å­—åˆ—ãŒã‚ã‚‹... %s\n", s);
         srcl_error("Extra characters at end of line: %s\n", s);
     }
     return 0;
@@ -1421,7 +1508,9 @@ void Pass(int passNo, srcl_t const* sr)
 {
     srcl_t const* p;
 
-    charEncSet(optCharEncMode);
+    if (setSrcTextEnc( srcEncCP ) == 0)
+        err_printf("Error: Text encoding does not match.\n");
+
     gen_endian(optEndianMode);
 
     srcl_errorSw(passNo - 1);
@@ -1430,7 +1519,7 @@ void Pass(int passNo, srcl_t const* sr)
         srcl_cur = p;
         g_adrLinTop = g_adr;
         if (Pass_Line(passNo, p->s)) {
-            /* end ‚ªŒ»‚ê‚½‚Æ‚«I—¹ */
+            /* end ãŒç¾ã‚ŒãŸã¨ãçµ‚äº† */
             break;
         }
     }
@@ -1464,8 +1553,8 @@ void    gen_hdr(char *hdrname)
 
 void FilnInit(void)
 {
-    if (Filn_Init() == NULL) {      /* ƒ\[ƒX“ü—Íƒ‹[ƒ`ƒ“‚Ì‰Šú‰» */
-        err_exit("ƒƒ‚ƒŠ‚ª‚½‚è‚È‚¢\n");
+    if (Filn_Init() == NULL) {      /* ã‚½ãƒ¼ã‚¹å…¥åŠ›ãƒ«ãƒ¼ãƒãƒ³ã®åˆæœŸåŒ– */
+        err_exit("Initialize error.\n");
     }
     Filn->opt_delspc    = 0;
     Filn->opt_mot_doll  = 1;
@@ -1477,28 +1566,28 @@ void FilnInit(void)
 }
 
 
-int main(int argc, char *argv[])
+int Main(int argc, char *argv[])
 {
     char    oname[FIL_NMSZ];
     int     i;
     char*   p;
     SLIST*  fl;
 
-    mbs_init();
-    FilnInit();     /* ƒ\[ƒX“ü—Íƒ‹[ƒ`ƒ“‚Ì‰Šú‰» */
+    FilnInit();     /* ã‚½ãƒ¼ã‚¹å…¥åŠ›ãƒ«ãƒ¼ãƒãƒ³ã®åˆæœŸåŒ– */
 
-    StrExpr_SetNameChkFunc(GetLblVal4StrExpr);  /* ®ŠÖŒW‚Ì€”õ */
+    StrExpr_SetNameChkFunc(GetLblVal4StrExpr);  /* å¼é–¢ä¿‚ã®æº–å‚™ */
     if (argc < 2)
-        Usage();
+        return Usage();
 
-    odr_init();                 /* –½—ß•\‚ğì‚é */
-    LBL_Init();                 /* ƒ‰ƒxƒ‹•\‚Ì‰Šú‰» */
+    odr_init();                 /* å‘½ä»¤è¡¨ã‚’ä½œã‚‹ */
+    LBL_Init();                 /* ãƒ©ãƒ™ãƒ«è¡¨ã®åˆæœŸåŒ– */
 
-    /* ƒRƒ}ƒ“ƒhƒ‰ƒCƒ“‰ğÍ */
+    /* ã‚³ãƒãƒ³ãƒ‰ãƒ©ã‚¤ãƒ³è§£æ */
     for (i = 1; i < argc; i++) {
         p = argv[i];
         if (*p == '-') {
-            scanOpts(p);
+            if (scanOpts(p))
+                return 1;
         } else if (*p == '@') {
             GetResFile(p+1);
         } else {
@@ -1509,9 +1598,9 @@ int main(int argc, char *argv[])
     Filn_ErrReOpen(NULL, stderr);
 
     if (fileListTop == NULL) {
-        //err_printf("ƒtƒ@ƒCƒ‹–¼‚ğw’è‚µ‚Ä‚­‚¾‚³‚¢\n");
+        //err_printf("ãƒ•ã‚¡ã‚¤ãƒ«åã‚’æŒ‡å®šã—ã¦ãã ã•ã„\n");
         err_printf("There is no file name\n");
-        Usage();
+        return Usage();
     }
 
     if (outname) {
@@ -1521,17 +1610,17 @@ int main(int argc, char *argv[])
         FIL_ChgExt(oname, "bin");
     }
 
-    /*-- ƒtƒ@ƒCƒ‹“Ç. ‚·‚×‚Ä‚Ìƒtƒ@ƒCƒ‹‚ğ“Ç‚İAƒ}ƒNƒˆ—‚µ‚½‚à‚Ì‚ğƒIƒ“ƒƒ‚ƒŠ‚Å—­‚ß‚Ş */
+    /*-- ãƒ•ã‚¡ã‚¤ãƒ«èª­è¾¼. ã™ã¹ã¦ã®ãƒ•ã‚¡ã‚¤ãƒ«ã‚’èª­è¾¼ã¿ã€ãƒã‚¯ãƒ­å‡¦ç†ã—ãŸã‚‚ã®ã‚’ã‚ªãƒ³ãƒ¡ãƒ¢ãƒªã§æºœã‚è¾¼ã‚€ */
     if (vmsgFlg) {
         err_printf("[LOAD] ");
     }
-    if (rulename) {                             /* ƒ‹[ƒ‹ƒtƒ@ƒCƒ‹w’è‚ª‚ ‚Á‚½‚Æ‚« */
+    if (rulename) {                             /* ãƒ«ãƒ¼ãƒ«ãƒ•ã‚¡ã‚¤ãƒ«æŒ‡å®šãŒã‚ã£ãŸã¨ã */
         if (vmsgFlg) {
             err_printf("\t'%s'",rulename);
         }
         GetSrcList(rulename);
     }
-    for (fl = fileListTop; fl; fl = fl->link) { /* ˆê˜A‚Ìƒtƒ@ƒCƒ‹‚ğ˜A‘±‚µ‚½‚à‚Ì‚Æ‚µ‚Äˆ— */
+    for (fl = fileListTop; fl; fl = fl->link) { /* ä¸€é€£ã®ãƒ•ã‚¡ã‚¤ãƒ«ã‚’é€£ç¶šã—ãŸã‚‚ã®ã¨ã—ã¦å‡¦ç† */
         if (vmsgFlg) {
             err_printf( "\t'%s'", fl->s);
         }
@@ -1540,19 +1629,19 @@ int main(int argc, char *argv[])
     if (vmsgFlg) {
         err_printf( "\n");
     }
-    Filn_Term();                        /* ƒ\[ƒX“ü—Íƒ‹[ƒ`ƒ“‚ÌI—¹ */
+    Filn_Term();                        /* ã‚½ãƒ¼ã‚¹å…¥åŠ›ãƒ«ãƒ¼ãƒãƒ³ã®çµ‚äº† */
 
-    /* ¶¬ */
+    /* ç”Ÿæˆ */
     if (vmsgFlg)
         err_printf( "[PASS1]\n");
-    Pass(1, srcl);                      /* Pass1:ƒAƒhƒŒƒX‚ğ“¾‚é */
-    g_mem = callocE(1, g_adr + 0x20);   /* •K—v•ªƒƒ‚ƒŠŠm•Û. +0x20‚Í•ÛŒ¯ */
+    Pass(1, srcl);                      /* Pass1:ã‚¢ãƒ‰ãƒ¬ã‚¹ã‚’å¾—ã‚‹ */
+    g_mem = callocE(1, g_adr + 0x20);   /* å¿…è¦åˆ†ãƒ¡ãƒ¢ãƒªç¢ºä¿. +0x20ã¯ä¿é™º */
     if (vmsgFlg)
         err_printf( "[PASS2]\n");
-    Pass(2, srcl);                      /* Pass2:ƒoƒCƒiƒŠ‚ğ¶¬ */
+    Pass(2, srcl);                      /* Pass2:ãƒã‚¤ãƒŠãƒªã‚’ç”Ÿæˆ */
     if (vmsgFlg)
         err_printf( "[SAVE] '%s' (%x)\n", oname, g_adr);
-    FIL_SaveE(oname, g_mem, g_adr);     /* ƒoƒCƒiƒŠƒtƒ@ƒCƒ‹‚ğƒZ[ƒu */
+    FIL_SaveE(oname, g_mem, g_adr);     /* ãƒã‚¤ãƒŠãƒªãƒ•ã‚¡ã‚¤ãƒ«ã‚’ã‚»ãƒ¼ãƒ– */
     err_printf( "\n%-14s 0x%x(%d) byte(s)\n", oname, g_adr, g_adr);
     if (hdrname) {
         err_printf( "[header output] %-14s\n", hdrname);
@@ -1560,9 +1649,32 @@ int main(int argc, char *argv[])
     }
 
     DB err_printf( "[POST]\n");
-    /* Œãˆ— */
+    /* å¾Œå‡¦ç† */
     srcl_free(&srcl);
-    odr_term();                         /* –½—ß•\‚ğíœ */
+    odr_term();                         /* å‘½ä»¤è¡¨ã‚’å‰Šé™¤ */
 
     return 0;
 }
+
+
+
+/* ------------------------------------------------------------------------ */
+#if !defined(_WIN32)
+int main(int argc, char *argv[])
+{
+    return Main(argc, argv);
+}
+#else
+int main(int argc, char *argv[])
+{
+    int rc;
+    int savCP = GetConsoleOutputCP();
+ #if defined(USE_JAPANESE_CONSOLE)
+    //USE_JAPANESE_CONSOLE();
+    s_jpFlag  = GetSystemDefaultLangID() == 0x0411;
+ #endif
+    rc = Main(argc, argv);
+    SetConsoleOutputCP(savCP);
+    return rc;
+}
+#endif

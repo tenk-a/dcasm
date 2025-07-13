@@ -28,7 +28,7 @@ static TREE_NEW     newElement;
 static TREE_MALLOC  funcMalloc;
 static TREE_FREE    funcFree;
 
-/** “ñ•ª–Ø‚ğì¬‚µ‚Ü‚·Bˆø”‚ÍA—v‘f‚Ìì¬,íœ,”äŠr‚ÌŠÖ”ƒ|ƒCƒ“ƒ^
+/** äºŒåˆ†æœ¨ã‚’ä½œæˆã—ã¾ã™ã€‚å¼•æ•°ã¯ã€è¦ç´ ã®ä½œæˆ,å‰Šé™¤,æ¯”è¼ƒã®é–¢æ•°ãƒã‚¤ãƒ³ã‚¿
  */
 TREE*   TREE_Make(TREE_NEW newElement,TREE_DEL delElement,TREE_CMP cmpElement, TREE_MALLOC funcMalloc, TREE_FREE funcFree)
 {
@@ -73,7 +73,7 @@ static int InsertNode(TREE_NODE* pp, int  lrFlg)
         p->link[0] = p->link[1] = NULL;
         p->avltFlg = 0;
       */
-        curTree->flag = 1;  /* V‚½‚Éì¬‚³‚ê‚½ */
+        curTree->flag = 1;  /* æ–°ãŸã«ä½œæˆã•ã‚ŒãŸ */
         p->element = newElement(elem);
         /* MSGF(("elem=%p\n",p->element));*/
         return 3;
@@ -134,7 +134,7 @@ static int InsertNode(TREE_NODE* pp, int  lrFlg)
 
 
 void *TREE_Insert(TREE* tree, void *e)
-    /* —v‘f‚ğ–Ø‚É‘}“ü */
+    /* è¦ç´ ã‚’æœ¨ã«æŒ¿å…¥ */
 {
     static TREE_NODE tmp;
 
@@ -166,20 +166,20 @@ static int  insRebalance(TREE_NODE** pp, int dir)
 
     grown = 0;
     ap = *pp;
-    if (ap->avltFlg == pt_ndr) {        /* Œ³X•Î‚Á‚Ä‚¢‚ê‚ÎA•Î‚Á‚½‘¤‚æ‚è‚PŒ¸‚é‚Ì‚Åƒoƒ‰ƒ“ƒX‚É‚È‚é*/
+    if (ap->avltFlg == pt_ndr) {        /* å…ƒã€…åã£ã¦ã„ã‚Œã°ã€åã£ãŸå´ã‚ˆã‚Šï¼‘æ¸›ã‚‹ã®ã§ãƒãƒ©ãƒ³ã‚¹ã«ãªã‚‹*/
         ap->avltFlg =  0;
-    } else if (ap->avltFlg == 0) {      /* Œ³Xƒoƒ‰ƒ“ƒXó‘Ô‚È‚ç‚Î */
-        ap->avltFlg |= pt_dir;          /* íœ‚Ì”½‘Î‘¤‚É•Î‚é */
+    } else if (ap->avltFlg == 0) {      /* å…ƒã€…ãƒãƒ©ãƒ³ã‚¹çŠ¶æ…‹ãªã‚‰ã° */
+        ap->avltFlg |= pt_dir;          /* å‰Šé™¤ã®åå¯¾å´ã«åã‚‹ */
         grown = 1;
-    } else {                            /* –Ø‚ÌÄ\¬ */
+    } else {                            /* æœ¨ã®å†æ§‹æˆ */
         bp = ap->link[dir];
-        if (bp->avltFlg == pt_dir) {    /* ˆê‰ñ“] */
+        if (bp->avltFlg == pt_dir) {    /* ä¸€å›è»¢ */
             ap->link[dir] = bp->link[ndr];
             bp->link[ndr] = ap;
             ap->avltFlg = 0;
             bp->avltFlg = 0;
             *pp = bp;
-        } else if (bp->avltFlg == pt_ndr) {         /* “ñ‰ñ“] */
+        } else if (bp->avltFlg == pt_ndr) {         /* äºŒå›è»¢ */
             cp = bp->link[ndr];
             ap->link[dir] = cp->link[ndr];
             bp->link[ndr] = cp->link[dir];
@@ -198,7 +198,7 @@ static int  insRebalance(TREE_NODE** pp, int dir)
             cp->avltFlg = 0;
             *pp = cp;
         } else {
-            ;   /* ‚±‚ê‚Í‚ ‚è‚¦‚È‚¢ */
+            ;   /* ã“ã‚Œã¯ã‚ã‚Šãˆãªã„ */
         }
     }
     return grown;
@@ -216,7 +216,7 @@ static int  insNode(TREE_NODE** pp)
         if (*pp == NULL)
             return 0;
         memset(*pp, 0x00, sizeof(TREE_NODE));
-        curTree->flag = 1;  /* V‚½‚Éì¬‚³‚ê‚½ */
+        curTree->flag = 1;  /* æ–°ãŸã«ä½œæˆã•ã‚ŒãŸ */
         (*pp)->element = newElement(elem);
         /* MSGF(("elem=%d\n",(*pp)->element));*/
         grown = 1;
@@ -248,7 +248,7 @@ static int  insNode(TREE_NODE** pp)
 }
 
 
-/** —v‘f‚ğ–Ø‚É‘}“ü
+/** è¦ç´ ã‚’æœ¨ã«æŒ¿å…¥
  */
 void *TREE_Insert(TREE* tree, void* e)
 {
@@ -288,7 +288,7 @@ static TREE_NODE* SearchElement(TREE_NODE* np, void *p)
 }
 
 void *TREE_Search(TREE* tree, void *p)
-    /* –Ø‚©‚ç—v‘f‚ğ’T‚· */
+    /* æœ¨ã‹ã‚‰è¦ç´ ã‚’æ¢ã™ */
 {
     TREE_NODE* np;
 
@@ -300,7 +300,7 @@ void *TREE_Search(TREE* tree, void *p)
 }
 #else
 
-/** –Ø‚©‚ç—v‘f‚ğ’T‚·
+/** æœ¨ã‹ã‚‰è¦ç´ ã‚’æ¢ã™
  */
 void *TREE_Search(TREE* tree, void *e)
 {
@@ -329,7 +329,7 @@ void *TREE_Search(TREE* tree, void *e)
 /*----------------------------------*/
 #if 10
 
-/** íœ‚Å–Ø‚Ìƒoƒ‰ƒ“ƒX‚ğ•Û‚Â‚½‚ß‚Ìˆ—
+/** å‰Šé™¤ã§æœ¨ã®ãƒãƒ©ãƒ³ã‚¹ã‚’ä¿ã¤ãŸã‚ã®å‡¦ç†
  */
 static int      delRebalance(TREE_NODE** pp, int dir)
 {
@@ -343,15 +343,15 @@ static int      delRebalance(TREE_NODE** pp, int dir)
     pt_ndr = (1<<ndr);
 
     ap = *pp;
-    if (ap->avltFlg == 0) {             /* Œ³Xƒoƒ‰ƒ“ƒXó‘Ô‚È‚ç‚Î */
-        ap->avltFlg |= pt_ndr;          /* íœ‚Ì”½‘Î‘¤‚É•Î‚é */
+    if (ap->avltFlg == 0) {             /* å…ƒã€…ãƒãƒ©ãƒ³ã‚¹çŠ¶æ…‹ãªã‚‰ã° */
+        ap->avltFlg |= pt_ndr;          /* å‰Šé™¤ã®åå¯¾å´ã«åã‚‹ */
         shrinked    =  0;
-    } else if (ap->avltFlg == pt_dir) { /* Œ³X•Î‚Á‚Ä‚¢‚ê‚ÎA•Î‚Á‚½‘¤‚æ‚è‚PŒ¸‚é‚Ì‚Åƒoƒ‰ƒ“ƒX‚É‚È‚é*/
+    } else if (ap->avltFlg == pt_dir) { /* å…ƒã€…åã£ã¦ã„ã‚Œã°ã€åã£ãŸå´ã‚ˆã‚Šï¼‘æ¸›ã‚‹ã®ã§ãƒãƒ©ãƒ³ã‚¹ã«ãªã‚‹*/
         ap->avltFlg =  0;
         shrinked    =  1;
-    } else {                            /* –Ø‚ÌÄ\¬ */
+    } else {                            /* æœ¨ã®å†æ§‹æˆ */
         bp = ap->link[ndr];
-        if (bp->avltFlg != pt_dir) {    /* ˆê‰ñ“] */
+        if (bp->avltFlg != pt_dir) {    /* ä¸€å›è»¢ */
             ap->link[ndr] = bp->link[dir];
             bp->link[dir] = ap;
             if (bp->avltFlg == 0) {
@@ -364,7 +364,7 @@ static int      delRebalance(TREE_NODE** pp, int dir)
                 shrinked = 1;
             }
             *pp = bp;
-        } else {                        /* “ñ‰ñ“] */
+        } else {                        /* äºŒå›è»¢ */
             cp = bp->link[dir];
             ap->link[ndr] = cp->link[dir];
             bp->link[dir] = cp->link[ndr];
@@ -417,7 +417,7 @@ static int  DeleteNode(TREE_NODE** pp)
     shrinked = 0;
     p = *pp;
     if (p == NULL) {
-        return -1;      /* íœ‚·‚×‚« node ‚ªŒ©‚Â‚©‚ç‚È‚© */
+        return -1;      /* å‰Šé™¤ã™ã¹ã node ãŒè¦‹ã¤ã‹ã‚‰ãªã‹ */
         /*printf ("PRGERR: AVL-TREE DELETE\n");*/
         /*exit(1);*/
     }
@@ -457,7 +457,7 @@ static int  DeleteNode(TREE_NODE** pp)
     return shrinked;
 }
 
-/** —v‘f‚ğ–Ø‚©‚çíœ
+/** è¦ç´ ã‚’æœ¨ã‹ã‚‰å‰Šé™¤
  */
 int TREE_Delete(TREE* tree, void* e)
 {
@@ -469,7 +469,7 @@ int TREE_Delete(TREE* tree, void* e)
     elem        = e;
     c = DeleteNode(&tree->root);
     if (c < 0)
-        return -1;  /* íœ‚·‚×‚«‚à‚Ì‚ª‚İ‚­‚©‚ç‚È‚©‚Á‚½ */
+        return -1;  /* å‰Šé™¤ã™ã¹ãã‚‚ã®ãŒã¿ãã‹ã‚‰ãªã‹ã£ãŸ */
     return 0;
 }
 
@@ -493,7 +493,7 @@ static void DelAllNode(TREE_NODE* np)
     return;
 }
 
-/** –Ø‚ğÁ‹‚·‚é
+/** æœ¨ã‚’æ¶ˆå»ã™ã‚‹
  */
 void TREE_Clear(TREE* tree)
 {
@@ -521,8 +521,8 @@ static void DoElement(TREE_NODE* np, void (*DoElem)(void*))
     return;
 }
 
-/** –Ø‚Ì‚·‚×‚Ä‚Ì—v‘f‚É‚Â‚¢‚Ä func(void *) ‚ğÀs. 
- *  func‚É‚Í—v‘f‚Ö‚Ìƒ|ƒCƒ“ƒ^‚ª“n‚³‚ê‚é
+/** æœ¨ã®ã™ã¹ã¦ã®è¦ç´ ã«ã¤ã„ã¦ func(void *) ã‚’å®Ÿè¡Œ.
+ *  funcã«ã¯è¦ç´ ã¸ã®ãƒã‚¤ãƒ³ã‚¿ãŒæ¸¡ã•ã‚Œã‚‹
  */
 void TREE_DoAll(TREE* tree, void (*func)(void*))
 {
@@ -544,8 +544,8 @@ static void DoElement(TREE_NODE* np)
     return;
 }
 
-/** –Ø‚Ì‚·‚×‚Ä‚Ì—v‘f‚É‚Â‚¢‚Ä func(void *) ‚ğÀs. 
- *  func‚É‚Í—v‘f‚Ö‚Ìƒ|ƒCƒ“ƒ^‚ª“n‚³‚ê‚é 
+/** æœ¨ã®ã™ã¹ã¦ã®è¦ç´ ã«ã¤ã„ã¦ func(void *) ã‚’å®Ÿè¡Œ.
+ *  funcã«ã¯è¦ç´ ã¸ã®ãƒã‚¤ãƒ³ã‚¿ãŒæ¸¡ã•ã‚Œã‚‹
  */
 void TREE_DoAll(TREE* tree, void (*func)(void *))
 {
@@ -571,7 +571,7 @@ static TREE_NODE* Tree2dlist_sub(TREE_NODE* dp)
         if (dp->link[0])
             Tree2dlist_sub(dp->link[0]);
         if (listTop == NULL) {
-            printf("PRGERR:tree2list ‚ª‚¨‚©‚µ‚¢‚¼!");
+            printf("PRGERR:tree2list ãŒãŠã‹ã—ã„ã!");
             exit(1);
         }
         listCur->link[1] = dp;
@@ -583,7 +583,7 @@ static TREE_NODE* Tree2dlist_sub(TREE_NODE* dp)
     return dp;
 }
 
-/** “ñ•ª–Ø‚ğ‘o•ûŒüƒŠƒXƒg‚É•ÏŠ·
+/** äºŒåˆ†æœ¨ã‚’åŒæ–¹å‘ãƒªã‚¹ãƒˆã«å¤‰æ›
  */
 void TREE_ToDList(TREE* tp)
 {
@@ -593,7 +593,7 @@ void TREE_ToDList(TREE* tp)
     tp->node = tp->root = listTop;
 }
 
-/** Œ»İˆÊ’u‚ğ‘o•ûŒüƒŠƒXƒg‚Ìæ“ª‚ÉˆÚ‚·
+/** ç¾åœ¨ä½ç½®ã‚’åŒæ–¹å‘ãƒªã‚¹ãƒˆã®å…ˆé ­ã«ç§»ã™
  */
 void *TREE_DListFirst(TREE* tp)
 {
@@ -603,7 +603,7 @@ void *TREE_DListFirst(TREE* tp)
     return NULL;
 }
 
-/** Ÿ‚Ì—v‘f‚ÖˆÚ“®
+/** æ¬¡ã®è¦ç´ ã¸ç§»å‹•
  */
 void *TREE_DListNext(TREE* tp)
 {
@@ -615,7 +615,7 @@ void *TREE_DListNext(TREE* tp)
     return NULL;
 }
 
-/** ‘o•ûŒüƒŠƒXƒg(‚à‚Æ‚à‚Æ‚Í–Øj‚ğÁ‹
+/** åŒæ–¹å‘ãƒªã‚¹ãƒˆ(ã‚‚ã¨ã‚‚ã¨ã¯æœ¨ï¼‰ã‚’æ¶ˆå»
  */
 void TREE_DListClear(TREE* tp)
 {
