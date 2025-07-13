@@ -1,17 +1,17 @@
 DCASM   v0.51
 
 
-ƒoƒCƒiƒŠEƒf[ƒ^¶¬‚ð–Ú“I‚Æ‚µ‚ÄA  
-@@68kƒAƒZƒ“ƒuƒ‰‚Å‚Ì dc.b dc.w dc.l (dc.q)  
-@@x86ƒAƒZƒ“ƒuƒ‰‚Å‚Ì db dw dd (dq)  
-‚Ì‚Ý‚ðƒTƒ|[ƒg‚µ‚½ƒ}ƒNƒƒAƒZƒ“ƒuƒ‰‚Å‚·B
+ãƒã‚¤ãƒŠãƒªãƒ»ãƒ‡ãƒ¼ã‚¿ç”Ÿæˆã‚’ç›®çš„ã¨ã—ã¦ã€
+ã€€ã€€68kã‚¢ã‚»ãƒ³ãƒ–ãƒ©ã§ã® dc.b dc.w dc.l (dc.q)
+ã€€ã€€x86ã‚¢ã‚»ãƒ³ãƒ–ãƒ©ã§ã® db dw dd (dq)
+ã®ã¿ã‚’ã‚µãƒãƒ¼ãƒˆã—ãŸãƒžã‚¯ãƒ­ã‚¢ã‚»ãƒ³ãƒ–ãƒ©ã§ã™ã€‚
 
-xdef ‚³‚ê‚½ŠO•”ƒ‰ƒxƒ‹‚ðACŒ¾Œê‚Ì .h‚Ì‚²‚Æ‚­A  
-    #define ƒ‰ƒxƒ‹@ƒAƒhƒŒƒX  
-‚ÌŒ`‚Å¶¬‚·‚é‚±‚Æ‚ª‚Å‚«‚Ü‚·B
+xdef ã•ã‚ŒãŸå¤–éƒ¨ãƒ©ãƒ™ãƒ«ã‚’ã€Cè¨€èªžã® .hã®ã”ã¨ãã€
+    #define ãƒ©ãƒ™ãƒ«ã€€ã‚¢ãƒ‰ãƒ¬ã‚¹
+ã®å½¢ã§ç”Ÿæˆã™ã‚‹ã“ã¨ãŒã§ãã¾ã™ã€‚
 
-ƒ}ƒNƒ‹@”\‚Æ‚µ‚Ä #include #define #if  #macro #rept #ipr
-‚ª‚ ‚è‚Ü‚·B
+ãƒžã‚¯ãƒ­æ©Ÿèƒ½ã¨ã—ã¦ #include #define #if  #macro #rept #ipr
+ãŒã‚ã‚Šã¾ã™ã€‚
 
 
-ƒAƒvƒŠ‚Ìƒ‰ƒCƒZƒ“ƒX‚Í “ñð€BSDƒ‰ƒCƒZƒ“ƒX ‚Å‚·B
+ã‚¢ãƒ—ãƒªã®ãƒ©ã‚¤ã‚»ãƒ³ã‚¹ã¯ Boost Software License ã§ã™ã€‚
