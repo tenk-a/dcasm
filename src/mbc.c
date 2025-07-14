@@ -172,7 +172,7 @@ static int  dbc_checkEncoding(char const* src, size_t len, int brokenEndChOk)
 MBC_IMPL_SUBR(dbc)
 
 static mbc_enc_st const mbc_encSt_dbc = {
-    MBC_CP_NONE,
+    MBC_CP_DBC, //MBC_CP_NONE,
     dbc_islead,
     dbc_checkChr,
     dbc_getChr,

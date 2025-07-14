@@ -63,8 +63,8 @@ int Usage(void)
             "  -y        文字列中, C言語の\\エスケープシーケンスを有効  -y- 無効\n"
             "  -s        ;をコメント開始文字でなく複文用のセパレータとして扱う\n"
             "  -m        命令(文法)ヘルプを標準エラー出力\n"
-            "  -c<UTF8|DBC|SJIS|EUCJP>   入力テキストの文字エンコード指定.\n"
-            "                            ※DBCはWindows環境の文字コード\n"
+            "  -c<UTF8|SJIS|EUCJP>   テキストの文字エンコード指定.\n"
+            //"                      ※DBCはWindows環境の文字コード\n"
             "  -v[-]     途中経過メッセージを表示する -v-しない\n"
             "  @FILE     レスポンス・ファイル指定\n"
         );
@@ -91,8 +91,8 @@ int Usage(void)
             "  -y        Enable C-style \\-escapes in strings, -y- disables\n"
             "  -s        Treat ';' as statement separator, not comment\n"
             "  -m        Show instruction/grammar help to stderr\n"
-            "  -c<UTF8|DBC|SJIS|EUCJP>  Specify input text encoding\n"
-            "                           (DBC: Windows double-byte encoding)\n"
+            "  -c<UTF8|SJIS|EUCJP>  Specify text encoding\n"
+            //"                     (DBC: Windows double-byte encoding)\n"
             "  -v[-]     Show progress messages (-v- disables)\n"
             "  @FILE     Use response file for options/filenames\n"
         );

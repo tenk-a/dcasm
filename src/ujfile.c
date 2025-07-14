@@ -156,7 +156,6 @@ ujfile_t* ujfile_open(char const* fname, ujfile_opts_t const* opts)
     if (buf) {
         ujfile_t* uj = (ujfile_t*)calloc(1, sizeof(ujfile_t));
         if (uj) {
-            uj->malloc_buf = buf;
             //buf[size] = 0;
             if (ujfile_set(uj, buf, size, fname, opts) != NULL)
                 return uj;
@@ -205,15 +204,19 @@ static ujfile_t*    ujfile_set(ujfile_t* uj, char* malloc_buf, size_t size, char
     uj->has_bom = (unsigned char)bomSize;
     if (curCP != dstCP && dstCP > 0 ) {
         mbc_enc_t   dstEnc  = mbc_cpToEnc((mbc_cp_t)dstCP);
-        size_t      dstSize = 0;
-        char*       dst     = mbc_strConvMalloc(dstEnc, curEnc, src, size, &dstSize);
-        free(malloc_buf);
-        if (dst == NULL)
-            return NULL;
-        malloc_buf  = dst;
-        src         = dst;
-        size        = dstSize;
-        uj->cur_cp  = curCP = dstCP;
+        if (dstEnc->cp) {
+            size_t      dstSize = 0;
+            char* dst = mbc_strConvMalloc(dstEnc, curEnc, src, size, &dstSize);
+            free(malloc_buf);
+            if (dst == NULL)
+                return NULL;
+            malloc_buf = dst;
+            src = dst;
+            size = dstSize;
+            uj->cur_cp = curCP = dstCP;
+        } else {
+            //dstCP = curCP;
+        }
     }
     if (opts->crlf_to_lf) {
         int         crToLf = (opts->crlf_to_lf >= 2);
