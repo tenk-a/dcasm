@@ -240,7 +240,7 @@ static int  vmsgFlg;
 static int  useSep;
 
 
-/** オプションの処理
+/** オプションの処理.
  */
 int scanOpts(char* a)
 {

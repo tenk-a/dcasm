@@ -66,7 +66,6 @@ typedef int64_t         ival_t;
 #define isNAMETOP(ch)   (isalpha(ch) || (ch) == '_' || (ch) == '@' || (ch) == '.')
 #define isNAMECHR(ch)   (isNAMETOP(ch) || isdigit(ch) || (ch) == '$')
 
-//#define ISKANJI(c)    (mbc_mode && (((unsigned char)(c) >= 0x81 && (unsigned char)(c) <= 0x9F) || ((unsigned char)(c) >= 0xE0 && (unsigned char)(c) <= 0xFC)))
 #define IS_MBC_LEAD(c)  (mbc_mode && mbc_isLead(mbc_cur_enc, c))
 #define MBS_LEN1(s)     (mbc_strLen1(mbc_cur_enc, s))
 

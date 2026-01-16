@@ -119,6 +119,7 @@ if /I "%Compiler%"=="vc"    goto L_VCVER
 @if /I not "%PATH:Microsoft Visual Studio\2017=%"=="%PATH%" set Compiler=vc141
 @if /I not "%PATH:Microsoft Visual Studio\2019=%"=="%PATH%" set Compiler=vc142
 @if /I not "%PATH:Microsoft Visual Studio\2022=%"=="%PATH%" set Compiler=vc143
+@if /I not "%PATH:Microsoft Visual Studio\18=%"=="%PATH%" set Compiler=vc145
 
 if "%Arch%"=="" call :CheckArch
 exit /b 0
@@ -193,6 +194,8 @@ if %VcVer% equ 140 set "Gen=Visual Studio 14 2015"
 if %VcVer% equ 141 set "Gen=Visual Studio 15 2017"
 if %VcVer% equ 142 set "Gen=Visual Studio 16 2019"
 if %VcVer% equ 143 set "Gen=Visual Studio 17 2022"
+if %VcVer% equ 144 set "Gen=Visual Studio 17 2022"
+if %VcVer% equ 145 set "Gen=Visual Studio 18 2026"
 if "%Gen%"=="NMake Makefiles" goto L_MAKE
 
 set BldOpts=--config %BldTyp%
@@ -214,7 +217,7 @@ exit /b 0
 ::###############################################
 :USAGE
 @echo gen_bld [Compiler] [Arch] [Release/Debug]
-@echo   Compiler vc80,vc90,vc100,vc110,vc120,vc140,vc141,vc142,vc143
+@echo   Compiler vc80,vc90,vc100,vc110,vc120,vc140-145
 @echo            msys watcom
 @echo   Arch     Win32,x64
 

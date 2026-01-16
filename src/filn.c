@@ -129,7 +129,7 @@ typedef struct filn_local_t {
     UCHAR       mifMacStk[FILN_IF_NEST+2];  /* exitm 用 マクロ開始時のmifCurの値を保持 */
     int         MM_mifChk;
 
-    // 元ソースをコメント化して入力するための処理 (V.opt_orgSrc 指定時) 用
+    /* 元ソースをコメント化して入力するための処理 (V.opt_orgSrc 指定時) 用. */
     //char*     sl_buf;
     SRCLIST*    sl_lst;
 
@@ -229,8 +229,9 @@ volatile int Filn_Exit(char const* fmt, ...)
 }
 
 
-/** エラー出力先を再設定する。nameがなければ、直接 fp を、名前があれば
- * freopn したファイルにする。fp == NULL の場合は STDERR を採用.
+/** エラー出力先を再設定.
+ * nameがなければ、直接 fp を, 名前があれば,freopn したファイルにする.
+ * fp == NULL の場合は STDERR を採用.
  */
 FILE *Filn_ErrReOpen(char const* name, FILE* fp)
 {
@@ -264,7 +265,7 @@ void Filn_ErrClose(void)
 }
 
 
-/** エラーと警告の数を返す
+/** エラーと警告の数を返す.
  */
 void Filn_GetErrNum(int* errNum, int* warnNum)
 {
@@ -284,8 +285,6 @@ void Filn_GetErrNum(int* errNum, int* warnNum)
 /** 構造体メンバ名の、オフセット値を求める */
 #define MEMBER_OFFSET(t,m)  ((long)&(((t*)0)->m))
 
-//#define ISKANJI(c)      ((UCHAR)(c) >= 0x81 && ((UCHAR)(c) <= 0x9F || ((UCHAR)(c) >= 0xE0 && (UCHAR)(c) <= 0xFC)))
-//#define ISKANJI2(c)     ((UCHAR)(c) >= 0x40 && (UCHAR)(c) <= 0xfc && (c) != 0x7f)
 #define STREND(p)       ((p)+strlen(p))
 #define STPCPY(d,s)     (strcpy(d,s) + strlen(s))
 
@@ -470,7 +469,7 @@ static TREE_MALLOC  funcMalloc;
 static TREE_FREE    funcFree;
 
 
-/** 二分木を作成します。引数は、要素の作成,削除,比較のための関数へのﾎﾟｲﾝﾀ
+/** 二分木を作成. 引数は、要素の作成,削除,比較のための関数へのポインタ.
  */
 static TREE*    TREE_Make(TREE_NEW newElement,TREE_DEL delElement,TREE_CMP cmpElement, TREE_MALLOC funcMalloc, TREE_FREE funcFree)
 {
@@ -586,7 +585,7 @@ static int  insNode(TREE_NODE** pp)
 }
 
 
-/** 要素を木に挿入
+/** 要素を木に挿入.
  */
 static void*    TREE_Insert(TREE* tree, void* e)
 {
@@ -604,7 +603,7 @@ static void*    TREE_Insert(TREE* tree, void* e)
 }
 
 
-/** 木から要素を探す
+/** 木から要素を探す.
  */
 static void* TREE_Search(TREE* tree, void* e)
 {
@@ -629,7 +628,7 @@ static void* TREE_Search(TREE* tree, void* e)
 }
 
 
-/** 削除で木のバランスを保つための処理
+/** 削除で木のバランスを保つための処理.
  */
 static int      delRebalance(TREE_NODE** pp, int dir)
 {
@@ -757,7 +756,7 @@ static int  DeleteNode(TREE_NODE** pp)
 }
 
 
-/** 要素を木から削除
+/** 要素を木から削除.
  */
 static int TREE_Delete(TREE* tree, void* e)
 {
@@ -790,7 +789,7 @@ static void DelAllNode(TREE_NODE* np)
 }
 
 
-/** 木を消去する
+/** 木を消去する.
  */
 static void TREE_Clear(TREE* tree)
 {
@@ -816,7 +815,7 @@ static void DoElement(TREE_NODE* np, void (*DoElem)(void*))
 
 
 /** 木のすべての要素について func(void *) を実行.
- *  funcには要素へのポインタが渡される
+ *  funcには要素へのポインタが渡される.
  */
 static void TREE_DoAll(TREE* tree, void (*func)(void*))
 {
@@ -837,7 +836,7 @@ static void M_ClearArg(void);
 static int  Filn_Open0(char const *name, int md);
 
 
-/** 初期化
+/** 初期化.
  */
 filn_t  *Filn_Init(void)
 {
@@ -1068,9 +1067,10 @@ int  Filn_Open(char const* name)
 
 static ujfile_t* textOpen(char const* fname)
 {
+    ujfile_t*     fp;
     ujfile_opts_t opts = { MBC_CP_NONE, MBC_CP_NONE, 1, 1, 0 };
     opts.dst_cp  = V.opt_cp; //MBC_CP_UTF8;
-    ujfile_t* fp = ujfile_open(fname, &opts);
+    fp = ujfile_open(fname, &opts);
     if (fp) {
         int cp = ujfile_curCP(fp);
         if (V.opt_cp == 0) {
@@ -1081,7 +1081,7 @@ static ujfile_t* textOpen(char const* fname)
     return fp;
 }
 
-/** md = 0 なら、カレントから検索。md!=0なら、カレント以外を検索。
+/** md = 0 なら、カレントから検索。md!=0なら、カレント以外を検索.
  */
 static int  Filn_Open0(char const* name, int md)
 {
@@ -1172,7 +1172,7 @@ void    Filn_PutsSrcLine(void)
 #endif
 
 
-/** 一行を入力する。行末の改行コードは取り除く
+/** 一行を入力する。行末の改行コードは取り除く.
  */
 char *Filn_GetStr(char* buf, size_t len)
 {
@@ -1413,7 +1413,7 @@ static unsigned M_GetEscChr(char const** s0)
 }
 
 
-/** 1行入力. コメント削除、空白圧縮、行連結等を行う
+/** 1行入力. コメント削除、空白圧縮、行連結等を行う.
  */
 static char *Filn_GetLine(void)
 {
@@ -1619,7 +1619,7 @@ typedef struct MTREE_T {
 enum {M_ATR_0=0, M_ATR_RSV, M_ATR_SET, M_ATR_DEF, M_ATR_MAC};
 enum {M_RSV_FILE=1, M_RSV_LINE, M_RSV_DATE, M_RSV_TIME};
 
-/** TREE ルーチンで、新しい要素を造るときに呼ばれる
+/** TREE ルーチンで、新しい要素を造るときに呼ばれる.
  */
 static void*    MTREE_New(MTREE_T const* t)
 {
@@ -1636,7 +1636,7 @@ static void*    MTREE_New(MTREE_T const* t)
 
 static void M_FreeArg(int* pArgc, char*** pArgv);
 
-/** TREE ルーチンで、メモリ開放のときに呼ばれる
+/** TREE ルーチンで、メモリ開放のときに呼ばれる.
  */
 static void MTREE_Del(void* ff)
 {
@@ -1648,7 +1648,7 @@ static void MTREE_Del(void* ff)
 }
 
 
-/** TREE ルーチンで、用いられる比較条件
+/** TREE ルーチンで、用いられる比較条件.
  */
 static int  MTREE_Cmp(MTREE_T const* f1, MTREE_T const* f2)
 {
@@ -1656,14 +1656,14 @@ static int  MTREE_Cmp(MTREE_T const* f1, MTREE_T const* f2)
 }
 
 
-/** TREE を初期化
+/** TREE を初期化.
  */
 static void     MTREE_Init(void)
 {
     Z.mtree = TREE_Make((TREE_NEW)MTREE_New, (TREE_DEL)MTREE_Del, (TREE_CMP)MTREE_Cmp, (TREE_MALLOC)mallocE, (TREE_FREE)freeE);
 }
 
-/** TREE を開放
+/** TREE を開放.
  */
 static void MTREE_Term(void)
 {
@@ -1671,7 +1671,7 @@ static void MTREE_Term(void)
 }
 
 
-/** 現在の名前が木に登録されたラベルかどうか探す
+/** 現在の名前が木に登録されたラベルかどうか探す.
  */
 static MTREE_T* MTREE_Search(char const* lbl_name)
 {
@@ -1687,7 +1687,7 @@ static MTREE_T* MTREE_Search(char const* lbl_name)
 }
 
 
-/** ラベル(名前)を木に登録する
+/** ラベル(名前)を木に登録する.
  */
 static MTREE_T  *MTREE_Add(char const* name, int atr, val_t argb, int argc, char** argv, char* buf, int md)
 {
@@ -1805,9 +1805,9 @@ static char const* const M_odrs[] = {
 
 
 /**
- *  key:さがす文字列へのポインタ
- *  tbl:文字列へのポインタをおさめた配列
- *  nn:配列のサイズ
+ *  key:さがす文字列へのポインタ.
+ *  tbl:文字列へのポインタをおさめた配列.
+ *  nn:配列のサイズ.
  *  復帰値:見つかった文字列の番号(0より)  みつからなかったとき-1
  */
  static int stblSearch(char const* const tbl[], int nn, char const* key)
@@ -2802,7 +2802,7 @@ static char const* M_GetArg(char const* s, int cont, char const* tit)
 }
 
 
-/** #define 定義行の処理
+/** #define 定義行の処理.
  */
 static int M_Define(char const* s)
 {
@@ -3015,8 +3015,8 @@ static char const* M_Undef(char const* name)
 }
 
 
-/** #rept ～ #endrept をバッファへ貯える
- * 実際の展開は M_Macc 内で行う
+/** #rept ～ #endrept をバッファへ貯える.
+ * 実際の展開は M_Macc 内で行う.
  */
 static int M_Rept(char *s)
 {
@@ -3062,8 +3062,8 @@ static int M_Rept(char *s)
 }
 
 
-/** #ipr ～ #endipr をバッファへ貯える
- * 実際の展開は M_Macc 内で行う
+/** #ipr ～ #endipr をバッファへ貯える.
+ * 実際の展開は M_Macc 内で行う.
  */
 static int M_Ipr(char const* s)
 {
@@ -3163,7 +3163,7 @@ static int M_Set(char const* s)
 #endif
 
 
-/** #print 行表示
+/** #print 行表示.
  */
 static int M_Print(char const* s)
 {
@@ -3376,7 +3376,7 @@ static void MM_Macc(char const* s, int exmacF, MTREE_T* m, char** v /*, char *fn
             }
             if (Z.M_sym != 'A') {
                 StMbuf(Z.mac_chrs/*"#"*/);
-//printf("!A0 %d %s\n",sh, Z.M_name);
+                //printf("!A0 %d %s\n",sh, Z.M_name);
                 goto LOP2;
             }
             k = M_OdrSearch(Z.M_name);
@@ -3622,14 +3622,14 @@ static void MM_Macc(char const* s, int exmacF, MTREE_T* m, char** v /*, char *fn
                 StMbuf(p);
                 goto LOOP;
             } else if (Z.M_sym != 'A') {
-//printf("!A2 %d %s\n",sh, Z.M_name);
+                //printf("!A2 %d %s\n",sh, Z.M_name);
                 StMbuf(Z.mac_chrs2/*"#"*/);
                 goto LOP2;
             }
             k = M_OdrSearch(Z.M_name);
             if (k < 0) {
-          JJJJ:
-//printf("JJJ %d %s\n",sh, Z.M_name);
+                JJJJ:
+                //printf("JJJ %d %s\n",sh, Z.M_name);
                 if (/*v == 0 &&*/ exprFlg) {    /* #命令でなかった */
                     sh = 1/*V.mac_chr2*/;
                     /*StMbuf(Z.mac_chrs2);*/
@@ -3772,7 +3772,7 @@ static void MM_Macc(char const* s, int exmacF, MTREE_T* m, char** v /*, char *fn
                     if (sh) StMbuf("\"");
                     mmp = Z.M_mptr;
                     s = MM_MaccMacro(s, 0/*sh*/, t);
-#if 1
+                 #if 1
                     //printf(">M\n");fflush(stdout);
                     if (mmp && *mmp) {  /* マクロ展開の引数置換のため */
                         tm = strdupE(mmp);
@@ -3783,7 +3783,7 @@ static void MM_Macc(char const* s, int exmacF, MTREE_T* m, char** v /*, char *fn
                         SAFE_FREE(tm);
                     }
                     //printf("<M\n");fflush(stdout);
-#endif
+                 #endif
                     if (sh) {StMbuf("\"");/*sh = 0;*/}
                 }
             }
@@ -3791,7 +3791,7 @@ static void MM_Macc(char const* s, int exmacF, MTREE_T* m, char** v /*, char *fn
             StMbuf(Z.M_str);
         }
     }
-//printf("@ Z.MM_nest %d\n", Z.MM_nest);fflush(stdout);
+    //printf("@ Z.MM_nest %d\n", Z.MM_nest);fflush(stdout);
     Z.MM_nest--;
     return;
 }
@@ -3817,7 +3817,7 @@ static char const* MM_MaccMacro(char const* s, int sh, MTREE_T* t)
 //  } else
   #endif
 
-//printf("MaccMacro start\n");
+    //printf("MaccMacro start\n");
 
     if (t->atr == M_ATR_SET) {  /* #setで定義された名前のとき */
         sprintf(Z.MM_wk, S_FMT_D, t->argb);
@@ -3996,6 +3996,7 @@ static void MM_MaccMacroAtrRsv(int argb, char const* t_name)
         /*MM_MaccErr(fname, line);*/
         //Filn_Error("PrgErr:予約#define名(%s)\n",t_name);
         Filn_Error("PrgErr: reserved #define name (%s)\n",t_name);
+        break;
     }
 }
 
@@ -4007,14 +4008,14 @@ static void MM_Macc_MSet(char const* name, char const* s)
     val_t   n;
     char    buf[1024];
 
-//printf("set<%s>\n",s);
+    //printf("set<%s>\n",s);
     n = M_Expr(s);
     s = Z.M_ep;
     /*if (Z.M_sym != '\n' && Z.M_sym != 0)*/
     M_ChkEol(Z.M_sym, s);
     sprintf(buf, S_FMT_D, n);
     MTREE_Add(name, M_ATR_SET, n, 0, NULL, strdupE(buf), 0);
-//printf("set>> %s = %ld\n", name, n);
+    //printf("set>> %s = %ld\n", name, n);
 }
 
 
@@ -4036,7 +4037,7 @@ static void MM_Macc_MRept(char const* name, char* d, char const** s0 /*, char *f
 
     /* リピート回数を求める */
     num = (int)M_Expr(d);
-//printf("{rept}%s(%ld)= <<<%s>>>\n",name,num,d);
+    //printf("{rept}%s(%ld)= <<<%s>>>\n",name,num,d);
     Z.M_mptr = d;
     *Z.M_mptr = 0;
     M_ChkEol(Z.M_sym, Z.M_ep);
@@ -4192,7 +4193,7 @@ static void MM_Macc_MIpr(char const* name, char const** s0, int argc, char const
 
 
 
-/** マクロ展開モード付き1行入力
+/** マクロ展開モード付き1行入力.
  */
 static char *Filn_GetLineMac(void)
 {
@@ -4285,7 +4286,7 @@ static char *Filn_GetLineMac(void)
             l = Z.inclp->line;
             M_Rept(Z.linbuf);               /* 一旦#endreptまで読み込み */
           RPT:
-            p = strdupE(Z.M_mbuf);      /* バッファに貯え */
+            p = strdupE(Z.M_mbuf);          /* バッファに貯え */
             InitStMbuf();                   /* マクロ内の#reptと同様に処理する */
             Z.errMacFnm = s, Z.errMacLin = l;
             MM_Macc(p, 1, NULL, NULL/*, s, l*/, "<iprpt>");
@@ -4310,14 +4311,14 @@ static char *Filn_GetLineMac(void)
     Z.errMacFnm = NULL, Z.errMacLin = 0;
     MM_Macc(Z.linbuf, 0, NULL, NULL/*, NULL, 0*/,"<linbuf>");
     Z.errMacFnm = NULL, Z.errMacLin = 0;
-//printf("T>%s\n",Z.M_mbuf);
+    //printf("T>%s\n",Z.M_mbuf);
     Z.MM_ptr = Z.M_mbuf;
     goto RETRY;
 }
 
 
 
-/** 一行入力. #で始まる行の処理を行う
+/** 一行入力. #で始まる行の処理を行う.
  */
 static char *Filn_GetsMif(void)
 {
@@ -4335,16 +4336,16 @@ static char *Filn_GetsMif(void)
             return NULL;
         goto RETRY;
     }
-//printf(">%s\n",s);
+    //printf(">%s\n",s);
 
     s = SkipSpc(s);                     /* 行頭空白スキップ */
     if (M_ChkMchr(s) == 0) {            /* プリプロセス行でなければ即効、戻る */
-        if (Z.MM_mifChk)                    /* #ifで未処理部分ならば次の行を読み込む */
+        if (Z.MM_mifChk)                /* #ifで未処理部分ならば次の行を読み込む */
             goto RETRY;
         return Z.linbuf;
     }
 
-//printf("mifCur:%d Z.mifStk:%d %s\n", Z.mifCur, Z.mifStk[Z.mifCur], s);
+    //printf("mifCur:%d Z.mifStk:%d %s\n", Z.mifCur, Z.mifStk[Z.mifCur], s);
     s = M_GetSym(s+1);
     if (Z.M_sym != 'A')
         goto E1;
@@ -4582,8 +4583,8 @@ static char *Filn_GetsMif(void)
 /*--------------------------------------------------------------------------*/
 
 
-/** マクロ展開付１行入力. malloc したメモリを返すので、呼び出し側で開放すること。
- * 最後に必ず '\n' がつく
+/** マクロ展開付１行入力. malloc したメモリを返すので、呼び出し側で開放すること.
+ * 最後に必ず '\n' がつく.
  */
 char *Filn_Gets(void)
 {
@@ -4629,7 +4630,7 @@ char *Filn_Gets(void)
 
 
 
-/** 現在入力中のファイル名と行番号を得る
+/** 現在入力中のファイル名と行番号を得る.
  */
 void Filn_GetFnameLine(char const** s, int* line)
 {
@@ -4639,8 +4640,8 @@ void Filn_GetFnameLine(char const** s, int* line)
 
 
 
-/** name がdefine されているか調べ、されていれば0以外を返す。
- * そのとき *strpに定義文字列へのポインタを入れて返す
+/** name がdefine されているか調べ、されていれば0以外を返す.
+ * そのとき *strpに定義文字列へのポインタを入れて返す.
  */
 int Filn_GetLabel(char const* name, char const** strp)
 {
@@ -4657,7 +4658,7 @@ int Filn_GetLabel(char const* name, char const** strp)
 
 
 /** マクロ名 name を 内容 st で登録する.
- * stがNULLならば Cコンパイラの -D仕様でname中に=があればそれ以降の文字列を、でなければ"1"を設定する
+ * stがNULLならば Cコンパイラの -D仕様でname中に=があればそれ以降の文字列を、でなければ"1"を設定する.
  */
 int Filn_SetLabel(char const* name, char const* st)
 {
@@ -4682,7 +4683,7 @@ int Filn_SetLabel(char const* name, char const* st)
 }
 
 
-/** 名前 s を undef する
+/** 名前 s を undef する.
  */
 int Filn_UndefLabel(char const* s)
 {
